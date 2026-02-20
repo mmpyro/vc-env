@@ -8,6 +8,8 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
@@ -21,12 +23,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Build binaries
-        run: |
-          mkdir -p build
-          GOOS=darwin GOARCH=arm64 go build -o build/vc-env-darwin-arm64 ./cmd/vc-env
-          GOOS=darwin GOARCH=amd64 go build -o build/vc-env-darwin-amd64 ./cmd/vc-env
-          GOOS=linux GOARCH=arm64 go build -o build/vc-env-linux-arm64 ./cmd/vc-env
-          GOOS=linux GOARCH=amd64 go build -o build/vc-env-linux-amd64 ./cmd/vc-env
+        run: make build-all VERSION=${{ github.ref_name }}
 
       - name: Generate release notes
         id: release_notes
