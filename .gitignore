@@ -33,3 +33,5 @@ go.work.sum
 # Environment files
 .env
 .env.local
+
+!Dockerfile.test
