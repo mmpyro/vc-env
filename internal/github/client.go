@@ -8,9 +8,10 @@ import (
 	"io"
 	"net/http"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
+
+	"github.com/user/vc-env/internal/semver"
 )
 
 // Release represents a GitHub release.
@@ -71,8 +72,7 @@ func (c *Client) ListReleases(includePrerelease bool) ([]string, error) {
 		}
 	}
 
-	sort.Strings(versions)
-	return versions, nil
+	return semver.SortDescending(versions), nil
 }
 
 // GetLatestRelease fetches the latest stable release version.
@@ -159,6 +159,7 @@ func parseNextPageURL(linkHeader string) string {
 }
 
 // DownloadBinary downloads a binary from the given URL and returns its contents.
+// It uses a longer timeout than the default API client to accommodate large binaries.
 func (c *Client) DownloadBinary(url string) ([]byte, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -166,7 +167,9 @@ func (c *Client) DownloadBinary(url string) ([]byte, error) {
 	}
 	req.Header.Set("User-Agent", "vc-env")
 
-	resp, err := c.HTTPClient.Do(req)
+	// Use a dedicated client with a longer timeout for binary downloads.
+	downloadClient := &http.Client{Timeout: 10 * time.Minute}
+	resp, err := downloadClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download binary: %w", err)
 	}

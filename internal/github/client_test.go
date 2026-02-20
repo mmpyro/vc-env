@@ -36,7 +36,8 @@ func TestListReleases(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		expected := []string{"0.30.0", "0.31.0", "0.32.0"}
+		// Expect newest-to-oldest (descending semver order)
+		expected := []string{"0.32.0", "0.31.0", "0.30.0"}
 		if len(versions) != len(expected) {
 			t.Fatalf("expected %d versions, got %d: %v", len(expected), len(versions), versions)
 		}
@@ -53,7 +54,8 @@ func TestListReleases(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		expected := []string{"0.30.0", "0.31.0", "0.32.0", "0.32.0-alpha.1"}
+		// Expect newest-to-oldest; pre-release 0.32.0-alpha.1 < 0.32.0 so it comes after
+		expected := []string{"0.32.0", "0.32.0-alpha.1", "0.31.0", "0.30.0"}
 		if len(versions) != len(expected) {
 			t.Fatalf("expected %d versions, got %d: %v", len(expected), len(versions), versions)
 		}
@@ -103,7 +105,8 @@ func TestListReleasesPagination(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	expected := []string{"0.30.0", "0.31.0"}
+	// Expect newest-to-oldest (descending semver order)
+	expected := []string{"0.31.0", "0.30.0"}
 	if len(versions) != len(expected) {
 		t.Fatalf("expected %d versions, got %d: %v", len(expected), len(versions), versions)
 	}

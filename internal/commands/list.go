@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 
 	"github.com/user/vc-env/internal/config"
+	"github.com/user/vc-env/internal/semver"
 )
 
 // List prints all installed vcluster versions.
@@ -30,7 +30,7 @@ func List() error {
 		}
 	}
 
-	sort.Strings(versions)
+	versions = semver.SortDescending(versions)
 
 	for _, v := range versions {
 		fmt.Println(v)

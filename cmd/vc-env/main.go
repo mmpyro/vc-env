@@ -42,7 +42,11 @@ func main() {
 	case "list-remote":
 		includePrerelease := false
 		for _, arg := range args[1:] {
-			if arg == "--prerelease" {
+			switch arg {
+			case "-h", "--help":
+				commands.ListRemoteHelp()
+				os.Exit(0)
+			case "--prereleases":
 				includePrerelease = true
 			}
 		}

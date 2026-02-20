@@ -68,6 +68,12 @@ func TestListRemoteWithMockClient(t *testing.T) {
 		if !strings.Contains(output, "0.30.0") || !strings.Contains(output, "0.31.0") {
 			t.Fatal("should contain stable releases")
 		}
+		// Verify descending order: 0.31.0 should appear before 0.30.0
+		idx31 := strings.Index(output, "0.31.0")
+		idx30 := strings.Index(output, "0.30.0")
+		if idx31 > idx30 {
+			t.Fatalf("expected 0.31.0 before 0.30.0 (newest first), got: %v", versions)
+		}
 	})
 
 	t.Run("includes prereleases", func(t *testing.T) {
@@ -78,6 +84,12 @@ func TestListRemoteWithMockClient(t *testing.T) {
 		output := strings.Join(versions, "\n")
 		if !strings.Contains(output, "alpha") {
 			t.Fatal("should contain pre-releases")
+		}
+		// Verify descending order: 0.32.0-alpha.1 should appear before 0.31.0
+		idx32 := strings.Index(output, "0.32.0-alpha.1")
+		idx31 := strings.Index(output, "0.31.0")
+		if idx32 > idx31 {
+			t.Fatalf("expected 0.32.0-alpha.1 before 0.31.0 (newest first), got: %v", versions)
 		}
 	})
 }
