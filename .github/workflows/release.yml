@@ -1,0 +1,69 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build binaries
+        run: make build-all VERSION=${{ github.ref_name }}
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          CURRENT_TAG="${{ github.ref_name }}"
+          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sed -n '2p')
+
+          if [ -n "$PREVIOUS_TAG" ]; then
+            NOTES=$(git log "${PREVIOUS_TAG}..${CURRENT_TAG}" --pretty=format:"- %s (%h)" --no-merges)
+          else
+            NOTES=$(git log "${CURRENT_TAG}" --pretty=format:"- %s (%h)" --no-merges)
+          fi
+
+          if [ -z "$NOTES" ]; then
+            NOTES="No changes recorded."
+          fi
+
+          {
+            echo "notes<<EOF"
+            echo "$NOTES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          body: ${{ steps.release_notes.outputs.notes }}
+          files: |
+            build/vc-env-darwin-arm64
+            build/vc-env-darwin-amd64
+            build/vc-env-linux-arm64
+            build/vc-env-linux-amd64
+
+      - name: Upload binaries as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vc-env-binaries-${{ github.ref_name }}
+          path: |
+            build/vc-env-darwin-arm64
+            build/vc-env-darwin-amd64
+            build/vc-env-linux-arm64
+            build/vc-env-linux-amd64
