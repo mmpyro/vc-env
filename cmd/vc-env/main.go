@@ -46,7 +46,7 @@ func main() {
 			case "-h", "--help":
 				commands.ListRemoteHelp()
 				os.Exit(0)
-			case "--prereleases":
+			case "--prerelease":
 				includePrerelease = true
 			}
 		}
