@@ -14,7 +14,7 @@ List all available versions of vcluster cli from GitHub releases.
 Versions are printed from newest to oldest.
 
 Flags:
-  --prereleases   Include pre-release versions (e.g. alpha, beta, rc)
+  --prerelease   Include pre-release versions (e.g. alpha, beta, rc)
   -h, --help      Show this help message`)
 }
 

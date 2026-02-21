@@ -46,11 +46,24 @@ func main() {
 			case "-h", "--help":
 				commands.ListRemoteHelp()
 				os.Exit(0)
-			case "--prereleases":
+			case "--prerelease":
 				includePrerelease = true
 			}
 		}
 		err = commands.ListRemote(includePrerelease)
+
+	case "latest":
+		includePrerelease := false
+		for _, arg := range args[1:] {
+			switch arg {
+			case "-h", "--help":
+				commands.LatestHelp()
+				os.Exit(0)
+			case "--prerelease":
+				includePrerelease = true
+			}
+		}
+		err = commands.Latest(includePrerelease)
 
 	case "install":
 		version := ""

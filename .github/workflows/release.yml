@@ -25,6 +25,46 @@ jobs:
       - name: Build binaries
         run: make build-all VERSION=${{ github.ref_name }}
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Test linux/amd64 binary in Docker
+        run: |
+          docker run --rm \
+            --platform linux/amd64 \
+            -e VCENV_ROOT=/root/.vc-env \
+            -e HOME=/root \
+            -v "${{ github.workspace }}/build/vc-env-linux-amd64:/staging/vc-env:ro" \
+            -v "${{ github.workspace }}/scripts/test-docker.sh:/staging/test-docker.sh:ro" \
+            ubuntu:22.04 \
+            bash -c '\
+              cp /staging/vc-env /usr/local/bin/vc-env && chmod +x /usr/local/bin/vc-env && \
+              cp /staging/test-docker.sh /tmp/test-docker.sh && chmod +x /tmp/test-docker.sh && \
+              apt-get update && apt-get install -y --no-install-recommends ca-certificates curl git bash wget >/dev/null 2>&1 && \
+              export PATH="/root/.vc-env/shims:/usr/local/bin:/usr/bin:/bin" && \
+              bash /tmp/test-docker.sh'
+
+      - name: Test linux/arm64 binary in Docker
+        run: |
+          docker run --rm \
+            --platform linux/arm64 \
+            -e VCENV_ROOT=/root/.vc-env \
+            -e HOME=/root \
+            -v "${{ github.workspace }}/build/vc-env-linux-arm64:/staging/vc-env:ro" \
+            -v "${{ github.workspace }}/scripts/test-docker.sh:/staging/test-docker.sh:ro" \
+            ubuntu:22.04 \
+            bash -c '\
+              cp /staging/vc-env /usr/local/bin/vc-env && chmod +x /usr/local/bin/vc-env && \
+              cp /staging/test-docker.sh /tmp/test-docker.sh && chmod +x /tmp/test-docker.sh && \
+              apt-get update && apt-get install -y --no-install-recommends ca-certificates curl git bash wget >/dev/null 2>&1 && \
+              export PATH="/root/.vc-env/shims:/usr/local/bin:/usr/bin:/bin" && \
+              bash /tmp/test-docker.sh'
+
       - name: Generate release notes
         id: release_notes
         run: |
@@ -52,6 +92,8 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           body: ${{ steps.release_notes.outputs.notes }}
+          target_commitish: ${{ github.sha }}
+          draft: true
           files: |
             build/vc-env-darwin-arm64
             build/vc-env-darwin-amd64
