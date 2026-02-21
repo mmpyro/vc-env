@@ -54,6 +54,8 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           body: ${{ steps.release_notes.outputs.notes }}
+          target_commitish: ${{ github.sha }}
+          draft: true
           files: |
             build/vc-env-darwin-arm64
             build/vc-env-darwin-amd64
