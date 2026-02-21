@@ -47,6 +47,8 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
+      # TODO: Test build/vc-env-linux-arm64 and build/vc-env-linux-amd64 on docker use Dockerfile.test
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
