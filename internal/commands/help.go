@@ -17,6 +17,7 @@ Commands:
   shell         Set or show the shell version of vcluster cli
   local         Set or show the local version of vcluster cli
   global        Set or show the global version of vcluster cli
+	latest				Print the latest available version of vcluster cli from GitHub releases.
   which         Print the full path to the active vcluster binary
   version       Print the version of vc-env`)
 }
