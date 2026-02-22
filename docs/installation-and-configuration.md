@@ -73,8 +73,8 @@ Required permissions:
 
 ### 2) Initialize shell integration
 
-Add this after the `VCENV_ROOT` export:
-
+Add this after the `VCENV_ROOT` export.
+Add this to your shell profile (e.g. `~/.bashrc` or `~/.zshrc`):
 ```sh
 eval "$(vc-env init)"
 ```
