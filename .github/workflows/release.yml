@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
 
 jobs:
   release:
@@ -39,15 +39,16 @@ jobs:
             --platform linux/amd64 \
             -e VCENV_ROOT=/root/.vc-env \
             -e HOME=/root \
+            -e TERM=xterm \
             -v "${{ github.workspace }}/build/vc-env-linux-amd64:/staging/vc-env:ro" \
-            -v "${{ github.workspace }}/scripts/test-docker.sh:/staging/test-docker.sh:ro" \
+            -v "${{ github.workspace }}/scripts/run-bats.sh:/staging/run-bats.sh:ro" \
             ubuntu:22.04 \
             bash -c '\
               cp /staging/vc-env /usr/local/bin/vc-env && chmod +x /usr/local/bin/vc-env && \
-              cp /staging/test-docker.sh /tmp/test-docker.sh && chmod +x /tmp/test-docker.sh && \
+              cp /staging/run-bats.sh /tmp/run-bats.sh && chmod +x /tmp/run-bats.sh && \
               apt-get update && apt-get install -y --no-install-recommends ca-certificates curl git bash wget >/dev/null 2>&1 && \
               export PATH="/root/.vc-env/shims:/usr/local/bin:/usr/bin:/bin" && \
-              bash /tmp/test-docker.sh'
+              bash /tmp/run-bats.sh'
 
       - name: Test linux/arm64 binary in Docker
         run: |
@@ -55,15 +56,16 @@ jobs:
             --platform linux/arm64 \
             -e VCENV_ROOT=/root/.vc-env \
             -e HOME=/root \
+            -e TERM=xterm \
             -v "${{ github.workspace }}/build/vc-env-linux-arm64:/staging/vc-env:ro" \
-            -v "${{ github.workspace }}/scripts/test-docker.sh:/staging/test-docker.sh:ro" \
+            -v "${{ github.workspace }}/scripts/run-bats.sh:/staging/run-bats.sh:ro" \
             ubuntu:22.04 \
             bash -c '\
               cp /staging/vc-env /usr/local/bin/vc-env && chmod +x /usr/local/bin/vc-env && \
-              cp /staging/test-docker.sh /tmp/test-docker.sh && chmod +x /tmp/test-docker.sh && \
+              cp /staging/run-bats.sh /tmp/run-bats.sh && chmod +x /tmp/run-bats.sh && \
               apt-get update && apt-get install -y --no-install-recommends ca-certificates curl git bash wget >/dev/null 2>&1 && \
               export PATH="/root/.vc-env/shims:/usr/local/bin:/usr/bin:/bin" && \
-              bash /tmp/test-docker.sh'
+              bash /tmp/run-bats.sh'
 
       - name: Generate release notes
         id: release_notes
