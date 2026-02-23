@@ -8,24 +8,32 @@ FROM ubuntu:22.04
 # ── System dependencies ────────────────────────────────────────────────────────
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates \
-        curl \
-        git \
-        bash \
-        wget \
+    ca-certificates \
+    curl \
+    git \
+    bash \
+    wget \
     && rm -rf /var/lib/apt/lists/*
+
+# ── BATS and helpers ──────────────────────────────────────────────────────────
+RUN git clone https://github.com/bats-core/bats-core.git /tmp/bats-core \
+    && /tmp/bats-core/install.sh /usr/local \
+    && rm -rf /tmp/bats-core \
+    && git clone https://github.com/bats-core/bats-support.git /usr/local/lib/bats-support \
+    && git clone https://github.com/bats-core/bats-assert.git /usr/local/lib/bats-assert
+
 
 # ── Go toolchain ───────────────────────────────────────────────────────────────
 ARG GO_VERSION=1.24.4
 RUN set -eux; \
     ARCH="$(dpkg --print-architecture)"; \
     case "$ARCH" in \
-        amd64) GOARCH="amd64" ;; \
-        arm64) GOARCH="arm64" ;; \
-        *) echo "Unsupported architecture: $ARCH" && exit 1 ;; \
+    amd64) GOARCH="amd64" ;; \
+    arm64) GOARCH="arm64" ;; \
+    *) echo "Unsupported architecture: $ARCH" && exit 1 ;; \
     esac; \
     curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-${GOARCH}.tar.gz" \
-        | tar -C /usr/local -xz
+    | tar -C /usr/local -xz
 
 ENV PATH="/usr/local/go/bin:${PATH}"
 
@@ -40,11 +48,10 @@ RUN go build -ldflags "-X main.Version=0.1.0" -o /usr/local/bin/vc-env ./cmd/vc-
 # ── Runtime environment ────────────────────────────────────────────────────────
 ENV HOME=/root
 ENV VCENV_ROOT=/root/.vc-env
+ENV VCENV_TEST_CONTAINER=1
 
 # Prepend shims directory so the vcluster shim is found after `vc-env init`
 ENV PATH="/root/.vc-env/shims:/usr/local/bin:/usr/local/go/bin:/usr/bin:/bin"
 
 # ── Entry point ────────────────────────────────────────────────────────────────
-# The test script detects it is already inside the container because VCENV_ROOT
-# is set, and proceeds directly to the integration test suite.
-ENTRYPOINT ["/bin/bash", "/src/scripts/test-docker.sh"]
+ENTRYPOINT ["/bin/bash", "/src/scripts/run-bats.sh"]
