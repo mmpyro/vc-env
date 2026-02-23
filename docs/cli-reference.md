@@ -407,3 +407,36 @@ Example:
 vc-env which
 ```
 
+---
+
+### `upgrade`
+
+Purpose: Download the latest stable release of `vc-env` from GitHub and replace the current binary in-place.
+
+Syntax:
+
+```text
+vc-env upgrade
+```
+
+Options/flags: none.
+
+Environment variables: none (the binary path is auto-detected via `os.Executable()`).
+
+Exit codes:
+
+- `0` on success, or when already up to date.
+- `1` on network/download errors, permission issues, or filesystem errors.
+
+Notes:
+
+- The command detects the current OS and CPU architecture automatically.
+- The new binary is written atomically (temp file + rename) to avoid corruption.
+- If the current version is a development build (`dev`), the upgrade always proceeds.
+
+Example:
+
+```sh
+vc-env upgrade
+```
+
