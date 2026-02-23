@@ -12,14 +12,14 @@ Manage multiple versions of the vcluster CLI and switch between them seamlessly.
 
 ## Downloads (latest release)
 
-Latest release: **v0.1.0** (tag: `v0.1.0`).
+Latest release: **v0.1.1** (tag: `v0.1.1`).
 
 | Platform | Asset | Download |
 |---|---|---|
-| macOS (Intel) | `vc-env-darwin-amd64` | [Download](https://github.com/mmpyro/vc-env/releases/download/v.0.1.0/vc-env-darwin-amd64) |
-| macOS (Apple Silicon) | `vc-env-darwin-arm64` | [Download](https://github.com/mmpyro/vc-env/releases/download/v.0.1.0/vc-env-darwin-arm64) |
-| Linux (x86_64) | `vc-env-linux-amd64` | [Download](https://github.com/mmpyro/vc-env/releases/download/v.0.1.0/vc-env-linux-amd64) |
-| Linux (ARM64) | `vc-env-linux-arm64` | [Download](https://github.com/mmpyro/vc-env/releases/download/v.0.1.0/vc-env-linux-arm64) |
+| macOS (Intel) | `vc-env-darwin-amd64` | [Download](https://github.com/mmpyro/vc-env/releases/download/v.0.1.1/vc-env-darwin-amd64) |
+| macOS (Apple Silicon) | `vc-env-darwin-arm64` | [Download](https://github.com/mmpyro/vc-env/releases/download/v.0.1.1/vc-env-darwin-arm64) |
+| Linux (x86_64) | `vc-env-linux-amd64` | [Download](https://github.com/mmpyro/vc-env/releases/download/v.0.1.1/vc-env-linux-amd64) |
+| Linux (ARM64) | `vc-env-linux-arm64` | [Download](https://github.com/mmpyro/vc-env/releases/download/v.0.1.1/vc-env-linux-arm64) |
 
 ## Features
 
