@@ -42,7 +42,8 @@ WORKDIR /src
 COPY . .
 
 # ── Build vc-env binary ────────────────────────────────────────────────────────
-RUN go build -ldflags "-X main.Version=0.1.0" -o /usr/local/bin/vc-env ./cmd/vc-env \
+ARG VERSION=0.1.0
+RUN go build -ldflags "-X main.Version=${VERSION}" -o /usr/local/bin/vc-env ./cmd/vc-env \
     && chmod +x /usr/local/bin/vc-env
 
 # ── Runtime environment ────────────────────────────────────────────────────────

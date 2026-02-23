@@ -33,39 +33,31 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Build test image (linux/amd64)
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --build-arg VERSION=${{ github.ref_name }} \
+            -f Dockerfile.test \
+            -t vc-env-test:amd64 \
+            --load .
+
       - name: Test linux/amd64 binary in Docker
         run: |
-          docker run --rm \
-            --platform linux/amd64 \
-            -e VCENV_ROOT=/root/.vc-env \
-            -e HOME=/root \
-            -e TERM=xterm \
-            -v "${{ github.workspace }}/build/vc-env-linux-amd64:/staging/vc-env:ro" \
-            -v "${{ github.workspace }}/scripts/run-bats.sh:/staging/run-bats.sh:ro" \
-            ubuntu:22.04 \
-            bash -c '\
-              cp /staging/vc-env /usr/local/bin/vc-env && chmod +x /usr/local/bin/vc-env && \
-              cp /staging/run-bats.sh /tmp/run-bats.sh && chmod +x /tmp/run-bats.sh && \
-              apt-get update && apt-get install -y --no-install-recommends ca-certificates curl git bash wget >/dev/null 2>&1 && \
-              export PATH="/root/.vc-env/shims:/usr/local/bin:/usr/bin:/bin" && \
-              bash /tmp/run-bats.sh'
+          docker run --rm --platform linux/amd64 vc-env-test:amd64
+
+      - name: Build test image (linux/arm64)
+        run: |
+          docker buildx build \
+            --platform linux/arm64 \
+            --build-arg VERSION=${{ github.ref_name }} \
+            -f Dockerfile.test \
+            -t vc-env-test:arm64 \
+            --load .
 
       - name: Test linux/arm64 binary in Docker
         run: |
-          docker run --rm \
-            --platform linux/arm64 \
-            -e VCENV_ROOT=/root/.vc-env \
-            -e HOME=/root \
-            -e TERM=xterm \
-            -v "${{ github.workspace }}/build/vc-env-linux-arm64:/staging/vc-env:ro" \
-            -v "${{ github.workspace }}/scripts/run-bats.sh:/staging/run-bats.sh:ro" \
-            ubuntu:22.04 \
-            bash -c '\
-              cp /staging/vc-env /usr/local/bin/vc-env && chmod +x /usr/local/bin/vc-env && \
-              cp /staging/run-bats.sh /tmp/run-bats.sh && chmod +x /tmp/run-bats.sh && \
-              apt-get update && apt-get install -y --no-install-recommends ca-certificates curl git bash wget >/dev/null 2>&1 && \
-              export PATH="/root/.vc-env/shims:/usr/local/bin:/usr/bin:/bin" && \
-              bash /tmp/run-bats.sh'
+          docker run --rm --platform linux/arm64 vc-env-test:arm64
 
       - name: Generate release notes
         id: release_notes
