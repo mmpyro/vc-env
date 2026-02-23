@@ -12,7 +12,7 @@ Manage multiple versions of the vcluster CLI and switch between them seamlessly.
 
 ## Downloads (latest release)
 
-Latest release: **v0.1.0** (tag: `v.0.1.0`).
+Latest release: **v0.1.0** (tag: `v0.1.0`).
 
 | Platform | Asset | Download |
 |---|---|---|
