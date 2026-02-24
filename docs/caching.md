@@ -1,6 +1,6 @@
 # Caching Strategy in `vc-env`
 
-`vc-env` uses a sophisticated three-layer caching strategy to manage the list of available `vcluster` versions. This ensures that the CLI remains fast, reliable, and respectful of GitHub API rate limits.
+`vc-env` uses a sophisticated three-layer caching strategy to manage the list of available `vcluster` versions. This ensure that commands like `list-remote` and `latest` remain fast, reliable, and respectful of GitHub API rate limits.
 
 ## 1. The Three Layers
 

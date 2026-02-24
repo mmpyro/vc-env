@@ -20,29 +20,28 @@ Flags:
 // Latest prints the latest available vcluster version from GitHub releases.
 // If includePrerelease is false, only the latest stable version is returned.
 // If includePrerelease is true, the latest version including prereleases is returned.
-// It does NOT require init — only queries GitHub.
+// It does NOT require init — only queries GitHub (or the local cache).
 func Latest(includePrerelease bool) error {
-	client := github.NewClient()
+	return latestWithClient(github.NewClient(), includePrerelease)
+}
 
-	var version string
-	var err error
-
-	if includePrerelease {
-		versions, fetchErr := client.ListReleases(true)
-		if fetchErr != nil {
-			return fmt.Errorf("failed to fetch remote versions: %w", fetchErr)
-		}
-		if len(versions) == 0 {
-			return fmt.Errorf("no versions found")
-		}
-		version = versions[0]
-	} else {
-		version, err = client.GetLatestRelease()
-		if err != nil {
-			return fmt.Errorf("failed to fetch latest version: %w", err)
-		}
+// latestWithClient is the testable core of Latest.  It accepts an
+// injected GitHub client so tests can point it at a mock HTTP server.
+func latestWithClient(client *github.Client, includePrerelease bool) error {
+	stable, pre, err := getRemoteVersions(client)
+	if err != nil {
+		return err
 	}
 
-	fmt.Println(version)
+	versions := stable
+	if includePrerelease {
+		versions = pre
+	}
+
+	if len(versions) == 0 {
+		return fmt.Errorf("no versions found")
+	}
+
+	fmt.Println(versions[0])
 	return nil
 }

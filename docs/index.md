@@ -8,6 +8,7 @@ It installs multiple `vcluster` versions under a single root directory, generate
 
 - [Installation and configuration](installation-and-configuration.md)
 - [CLI reference](cli-reference.md)
+- [Caching strategy](caching.md)
 
 ## How version selection works
 
