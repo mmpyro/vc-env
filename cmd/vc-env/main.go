@@ -46,7 +46,7 @@ func main() {
 			case "-h", "--help":
 				commands.ListRemoteHelp()
 				os.Exit(0)
-			case "--prereleases":
+			case "--prerelease":
 				includePrerelease = true
 			}
 		}
@@ -102,6 +102,9 @@ func main() {
 
 	case "which":
 		err = commands.Which()
+
+	case "upgrade":
+		err = commands.Upgrade()
 
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n\n", args[0])

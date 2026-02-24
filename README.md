@@ -4,6 +4,23 @@ A version manager for [vcluster](https://www.vcluster.com/) CLI, similar to [tfe
 
 Manage multiple versions of the vcluster CLI and switch between them seamlessly.
 
+## Documentation
+
+- [Docs index](docs/index.md)
+- [Installation and configuration](docs/installation-and-configuration.md)
+- [CLI reference](docs/cli-reference.md)
+
+## Downloads (latest release)
+
+Latest release: **v0.1.1** (tag: `v0.1.1`).
+
+| Platform | Asset | Download |
+|---|---|---|
+| macOS (Intel) | `vc-env-darwin-amd64` | [Download](https://github.com/mmpyro/vc-env/releases/download/v.0.1.1/vc-env-darwin-amd64) |
+| macOS (Apple Silicon) | `vc-env-darwin-arm64` | [Download](https://github.com/mmpyro/vc-env/releases/download/v.0.1.1/vc-env-darwin-arm64) |
+| Linux (x86_64) | `vc-env-linux-amd64` | [Download](https://github.com/mmpyro/vc-env/releases/download/v.0.1.1/vc-env-linux-amd64) |
+| Linux (ARM64) | `vc-env-linux-arm64` | [Download](https://github.com/mmpyro/vc-env/releases/download/v.0.1.1/vc-env-linux-arm64) |
+
 ## Features
 
 - Install and manage multiple vcluster CLI versions
@@ -18,7 +35,7 @@ Manage multiple versions of the vcluster CLI and switch between them seamlessly.
 ### From Source
 
 ```sh
-git clone https://github.com/user/vc-env.git
+git clone https://github.com/mmpyro/vc-env.git
 cd vc-env
 make build
 ```
@@ -102,12 +119,15 @@ The shim automatically resolves and uses the correct version.
 
 ## Command Reference
 
+Full reference: [docs/cli-reference.md](docs/cli-reference.md)
+
 | Command | Description |
 |---------|-------------|
 | `vc-env help` | Display help and all available commands |
 | `vc-env list` | List all installed versions |
-| `vc-env list-remote` | List all available versions from GitHub |
-| `vc-env list-remote --prerelease` | Include pre-release versions |
+| `vc-env list-remote` | List all available vcluster versions from GitHub |
+| `vc-env list-remote --prerelease` | Include pre-release vcluster versions |
+| `vc-env latest` | Print the latest available version of vcluster from GitHub |
 | `vc-env init` | Initialize vc-env setup |
 | `vc-env install [VERSION]` | Install a specific version (or latest) |
 | `vc-env uninstall VERSION` | Uninstall a specific version |

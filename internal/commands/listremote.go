@@ -20,7 +20,7 @@ by default to avoid redundant network requests.  Set VCENV_CACHE_TTL to a Go
 duration string (e.g. "30m", "24h") to override the TTL.
 
 Flags:
-  --prereleases   Include pre-release versions (e.g. alpha, beta, rc)
+  --prerelease   Include pre-release versions (e.g. alpha, beta, rc)
   -h, --help      Show this help message`)
 }
 

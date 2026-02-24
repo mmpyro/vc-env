@@ -164,6 +164,39 @@ func (c *Client) GetLatestRelease() (string, error) {
 	return strings.TrimPrefix(release.TagName, "v"), nil
 }
 
+// GetLatestReleaseFor fetches the latest stable release for the given
+// GitHub owner/repo (e.g. "mmpyro/vc-env").
+func (c *Client) GetLatestReleaseFor(ownerRepo string) (string, error) {
+	url := fmt.Sprintf("%s/repos/%s/releases/latest", c.BaseURL, ownerRepo)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	req.Header.Set("User-Agent", "vc-env")
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch latest release: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusForbidden {
+		return "", fmt.Errorf("GitHub API rate limit exceeded. Please try again later")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+	}
+
+	var release Release
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return "", fmt.Errorf("failed to parse release: %w", err)
+	}
+
+	return strings.TrimPrefix(release.TagName, "v"), nil
+}
+
 // fetchReleasesPage fetches a single page of releases and returns the next page URL.
 func (c *Client) fetchReleasesPage(url string) ([]Release, string, error) {
 	req, err := http.NewRequest("GET", url, nil)

@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
 
 jobs:
   release:
@@ -24,6 +24,38 @@ jobs:
 
       - name: Build binaries
         run: make build-all VERSION=${{ github.ref_name }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build test image (linux/amd64)
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            -f Dockerfile.ci \
+            -t vc-env-test:amd64 \
+            --load .
+
+      - name: Test linux/amd64 binary in Docker
+        run: |
+          docker run --rm --platform linux/amd64 -v $(pwd)/build/vc-env-linux-amd64:/src/vc-env vc-env-test:amd64
+
+      - name: Build test image (linux/arm64)
+        run: |
+          docker buildx build \
+            --platform linux/arm64 \
+            -f Dockerfile.ci \
+            -t vc-env-test:arm64 \
+            --load .
+
+      - name: Test linux/arm64 binary in Docker
+        run: |
+          docker run --rm --platform linux/arm64 -v $(pwd)/build/vc-env-linux-arm64:/src/vc-env vc-env-test:arm64
 
       - name: Generate release notes
         id: release_notes
@@ -47,13 +79,13 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      # TODO: Test build/vc-env-linux-arm64 and build/vc-env-linux-amd64 on docker use Dockerfile.test
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           body: ${{ steps.release_notes.outputs.notes }}
+          target_commitish: ${{ github.sha }}
+          draft: true
           files: |
             build/vc-env-darwin-arm64
             build/vc-env-darwin-amd64
