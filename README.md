@@ -147,6 +147,10 @@ export VCENV_ROOT="$HOME/.vcenv"
 eval "$(vc-env init)"
 ```
 
+## Caching
+
+`vc-env` uses a three-layer caching strategy to keep `list-remote` fast and reliable. For more details on how it works and how to configure it, see [docs/caching.md](docs/caching.md).
+
 ## Directory Structure
 
 ```

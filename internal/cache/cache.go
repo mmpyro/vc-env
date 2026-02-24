@@ -111,7 +111,7 @@ func parseTTL() time.Duration {
 		return defaultTTL
 	}
 	d, err := time.ParseDuration(raw)
-	if err != nil || d <= 0 {
+	if err != nil {
 		return defaultTTL
 	}
 	return d

@@ -99,6 +99,7 @@ func TestListRemote_StaleCache_DeltaFetch(t *testing.T) {
 		t.Fatalf("Save: %v", err)
 	}
 	t.Setenv("VCENV_ROOT", root)
+	t.Setenv("VCENV_CACHE_TTL", "1ns")
 
 	// The mock server returns a new release 0.31.0 that is newer than 0.30.0.
 	releases := []github.Release{
