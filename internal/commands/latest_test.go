@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/user/vc-env/internal/cache"
 	"github.com/user/vc-env/internal/github"
 )
 
@@ -18,37 +21,12 @@ func TestLatest(t *testing.T) {
 
 func TestLatestWithMockClient(t *testing.T) {
 	releases := []github.Release{
-		{TagName: "v0.30.0", Prerelease: false, Draft: false},
-		{TagName: "v0.31.0", Prerelease: false, Draft: false},
 		{TagName: "v0.32.0-alpha.1", Prerelease: true, Draft: false},
+		{TagName: "v0.31.0", Prerelease: false, Draft: false},
+		{TagName: "v0.30.0", Prerelease: false, Draft: false},
 	}
 
-	t.Run("latest stable version uses GetLatestRelease", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			// GetLatestRelease hits /releases/latest and returns a single Release
-			release := github.Release{TagName: "v0.31.0", Prerelease: false, Draft: false}
-			if err := json.NewEncoder(w).Encode(release); err != nil {
-				t.Fatalf("failed to encode: %v", err)
-			}
-		}))
-		defer server.Close()
-
-		client := &github.Client{
-			BaseURL:    server.URL,
-			HTTPClient: server.Client(),
-		}
-
-		version, err := client.GetLatestRelease()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if version != "0.31.0" {
-			t.Fatalf("expected 0.31.0, got %s", version)
-		}
-	})
-
-	t.Run("latest with prerelease uses ListReleases and returns first", func(t *testing.T) {
+	t.Run("latest stable version uses cache/network", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			if err := json.NewEncoder(w).Encode(releases); err != nil {
@@ -62,22 +40,23 @@ func TestLatestWithMockClient(t *testing.T) {
 			HTTPClient: server.Client(),
 		}
 
-		versions, err := client.ListReleases(true)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(versions) == 0 {
-			t.Fatal("expected at least one version")
-		}
-		// The first element should be the newest (sorted descending)
-		if versions[0] != "0.32.0-alpha.1" {
-			t.Fatalf("expected 0.32.0-alpha.1 as latest with prerelease, got %s", versions[0])
+		out := captureStdout(t, func() {
+			if err := latestWithClient(client, false); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+
+		if strings.TrimSpace(out) != "0.31.0" {
+			t.Fatalf("expected 0.31.0, got %q", strings.TrimSpace(out))
 		}
 	})
 
-	t.Run("error handling when GitHub API fails", func(t *testing.T) {
+	t.Run("latest with prerelease returns newest including alpha", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusInternalServerError)
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(releases); err != nil {
+				t.Fatalf("failed to encode: %v", err)
+			}
 		}))
 		defer server.Close()
 
@@ -86,9 +65,40 @@ func TestLatestWithMockClient(t *testing.T) {
 			HTTPClient: server.Client(),
 		}
 
-		_, err := client.GetLatestRelease()
-		if err == nil {
-			t.Fatal("expected error for non-200 response, got nil")
+		out := captureStdout(t, func() {
+			if err := latestWithClient(client, true); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+
+		if strings.TrimSpace(out) != "0.32.0-alpha.1" {
+			t.Fatalf("expected 0.32.0-alpha.1, got %q", strings.TrimSpace(out))
+		}
+	})
+
+	t.Run("latest respects fresh cache", func(t *testing.T) {
+		root := t.TempDir()
+		t.Setenv("VCENV_ROOT", root)
+		c := cache.NewWithTTL(root+"/cache", time.Hour)
+		// Cache has 0.99.0 as latest
+		if err := c.Save([]string{"0.99.0"}, []string{"0.99.0"}); err != nil {
+			t.Fatalf("Save: %v", err)
+		}
+
+		// Use a client that fails — it should NOT be called because cache is fresh
+		failClient := &github.Client{
+			BaseURL:    "http://127.0.0.1:0",
+			HTTPClient: &http.Client{Timeout: 100 * time.Millisecond},
+		}
+
+		out := captureStdout(t, func() {
+			if err := latestWithClient(failClient, false); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+
+		if strings.TrimSpace(out) != "0.99.0" {
+			t.Fatalf("expected version from cache 0.99.0, got %q", strings.TrimSpace(out))
 		}
 	})
 }

@@ -9,6 +9,7 @@ Manage multiple versions of the vcluster CLI and switch between them seamlessly.
 - [Docs index](docs/index.md)
 - [Installation and configuration](docs/installation-and-configuration.md)
 - [CLI reference](docs/cli-reference.md)
+- [Caching strategy](docs/caching.md)
 
 ## Downloads (latest release)
 
@@ -166,6 +167,10 @@ Add to `~/.zshrc`:
 export VCENV_ROOT="$HOME/.vcenv"
 eval "$(vc-env init)"
 ```
+
+## Caching
+
+`vc-env` uses a three-layer caching strategy to keep `list-remote` and `latest` fast and reliable. For more details on how it works and how to configure it, see [docs/caching.md](docs/caching.md).
 
 ## Directory Structure
 

@@ -3,7 +3,7 @@
 # Usage: docker build -f Dockerfile.test -t vc-env-test .
 #        docker run --rm vc-env-test
 
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 # ── System dependencies ────────────────────────────────────────────────────────
 ENV DEBIAN_FRONTEND=noninteractive
@@ -49,7 +49,6 @@ RUN go build -ldflags "-X main.Version=${VERSION}" -o /usr/local/bin/vc-env ./cm
 # ── Runtime environment ────────────────────────────────────────────────────────
 ENV HOME=/root
 ENV VCENV_ROOT=/root/.vc-env
-ENV VCENV_TEST_CONTAINER=1
 
 # Prepend shims directory so the vcluster shim is found after `vc-env init`
 ENV PATH="/root/.vc-env/shims:/usr/local/bin:/usr/local/go/bin:/usr/bin:/bin"

@@ -155,7 +155,7 @@ vc-env list
 
 Purpose: List all available `vcluster` versions from GitHub releases (newest to oldest).
 
-This command does not require `VCENV_ROOT` or initialization.
+This command does not require `VCENV_ROOT` or initialization. If `VCENV_ROOT` is set, results are persistently cached on disk (see [caching strategy](caching.md)).
 
 Syntax:
 
@@ -187,7 +187,7 @@ vc-env list-remote --prerelease
 
 Purpose: Print the latest available `vcluster` version from GitHub releases.
 
-This command does not require `VCENV_ROOT` or initialization.
+This command does not require `VCENV_ROOT` or initialization. If `VCENV_ROOT` is set, results are persistently cached on disk (see [caching strategy](caching.md)).
 
 Syntax:
 

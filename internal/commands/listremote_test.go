@@ -1,37 +1,381 @@
 package commands
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/user/vc-env/internal/cache"
 	"github.com/user/vc-env/internal/github"
 )
 
-func TestListRemote(t *testing.T) {
+// newMockServer returns a test HTTP server that serves the given releases.
+func newMockServer(t *testing.T, releases []github.Release) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(releases); err != nil {
+			t.Fatalf("encode: %v", err)
+		}
+	}))
+}
+
+// ── listRemoteWithClient tests ────────────────────────────────────────────────
+
+func TestListRemote_FreshCache_NoNetworkCall(t *testing.T) {
+	// Pre-populate a fresh cache.
+	// newCacheForRoot stores the cache at $VCENV_ROOT/cache, so we must
+	// write to that sub-directory.
+	root := t.TempDir()
+	c := cache.NewWithTTL(root+"/cache", time.Hour)
+	stable := []string{"0.31.0", "0.30.0"}
+	pre := []string{"0.32.0-alpha.1", "0.31.0", "0.30.0"}
+	if err := c.Save(stable, pre); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	// Point VCENV_ROOT at our temp dir so newCacheForRoot picks it up.
+	t.Setenv("VCENV_ROOT", root)
+
+	// Use a client that always fails — it must never be called.
+	failClient := &github.Client{
+		BaseURL: "http://127.0.0.1:0", // nothing listening here
+		HTTPClient: &http.Client{
+			Timeout: 100 * time.Millisecond,
+		},
+	}
+
+	out := captureStdout(t, func() {
+		if err := listRemoteWithClient(failClient, false); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	if !strings.Contains(out, "0.31.0") {
+		t.Errorf("expected 0.31.0 in output, got: %s", out)
+	}
+	if !strings.Contains(out, "0.30.0") {
+		t.Errorf("expected 0.30.0 in output, got: %s", out)
+	}
+}
+
+func TestListRemote_FreshCache_Prereleases(t *testing.T) {
+	root := t.TempDir()
+	c := cache.NewWithTTL(root+"/cache", time.Hour)
+	stable := []string{"0.31.0", "0.30.0"}
+	pre := []string{"0.32.0-alpha.1", "0.31.0", "0.30.0"}
+	if err := c.Save(stable, pre); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	t.Setenv("VCENV_ROOT", root)
+
+	failClient := &github.Client{
+		BaseURL:    "http://127.0.0.1:0",
+		HTTPClient: &http.Client{Timeout: 100 * time.Millisecond},
+	}
+
+	out := captureStdout(t, func() {
+		if err := listRemoteWithClient(failClient, true); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	if !strings.Contains(out, "0.32.0-alpha.1") {
+		t.Errorf("expected pre-release in output, got: %s", out)
+	}
+}
+
+func TestListRemote_StaleCache_DeltaFetch(t *testing.T) {
+	// Write a stale cache that contains only 0.30.0.
+	root := t.TempDir()
+	c := cache.NewWithTTL(root+"/cache", -1) // negative TTL → always stale
+	if err := c.Save([]string{"0.30.0"}, []string{"0.30.0"}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	t.Setenv("VCENV_ROOT", root)
+	t.Setenv("VCENV_CACHE_TTL", "1ns")
+
+	// The mock server returns a new release 0.31.0 that is newer than 0.30.0.
+	releases := []github.Release{
+		{TagName: "v0.31.0", Prerelease: false, Draft: false},
+		{TagName: "v0.30.0", Prerelease: false, Draft: false},
+	}
+	server := newMockServer(t, releases)
+	defer server.Close()
+
+	client := &github.Client{
+		BaseURL:    server.URL,
+		HTTPClient: server.Client(),
+	}
+
+	out := captureStdout(t, func() {
+		if err := listRemoteWithClient(client, false); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	if !strings.Contains(out, "0.31.0") {
+		t.Errorf("expected new version 0.31.0 in output, got: %s", out)
+	}
+	if !strings.Contains(out, "0.30.0") {
+		t.Errorf("expected existing version 0.30.0 in output, got: %s", out)
+	}
+
+	// Verify the cache was updated.
+	freshCache := cache.NewWithTTL(root+"/cache", time.Hour)
+	versions, _, ok := freshCache.Load()
+	if !ok {
+		t.Fatal("expected cache to be refreshed after delta fetch")
+	}
+	found := false
+	for _, v := range versions {
+		if v == "0.31.0" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 0.31.0 in refreshed cache, got: %v", versions)
+	}
+}
+
+func TestListRemote_NoCache_NetworkFails_FallsBackToBaseline(t *testing.T) {
+	// No VCENV_ROOT → no disk cache.
+	t.Setenv("VCENV_ROOT", "")
+
+	failClient := &github.Client{
+		BaseURL:    "http://127.0.0.1:0",
+		HTTPClient: &http.Client{Timeout: 100 * time.Millisecond},
+	}
+
+	var stderrBuf bytes.Buffer
+	oldStderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+
+	out := captureStdout(t, func() {
+		// Should not return an error even though the network is down.
+		_ = listRemoteWithClient(failClient, false)
+	})
+
+	_ = w.Close()
+	os.Stderr = oldStderr
+	_, _ = io.Copy(&stderrBuf, r)
+
+	// The baseline must contain at least one version.
+	if strings.TrimSpace(out) == "" {
+		t.Fatal("expected baseline versions in output, got empty string")
+	}
+	// A warning should have been printed to stderr.
+	if !strings.Contains(stderrBuf.String(), "warning") {
+		t.Errorf("expected warning on stderr, got: %s", stderrBuf.String())
+	}
+}
+
+func TestListRemote_OutputSortedDescending(t *testing.T) {
+	t.Setenv("VCENV_ROOT", t.TempDir())
+
 	releases := []github.Release{
 		{TagName: "v0.30.0", Prerelease: false, Draft: false},
 		{TagName: "v0.31.0", Prerelease: false, Draft: false},
-		{TagName: "v0.32.0-alpha.1", Prerelease: true, Draft: false},
+		{TagName: "v0.32.0", Prerelease: false, Draft: false},
+	}
+	server := newMockServer(t, releases)
+	defer server.Close()
+
+	client := &github.Client{
+		BaseURL:    server.URL,
+		HTTPClient: server.Client(),
 	}
 
+	out := captureStdout(t, func() {
+		if err := listRemoteWithClient(client, false); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	// Find the positions of the three versions.
+	pos := func(v string) int {
+		for i, l := range lines {
+			if strings.TrimSpace(l) == v {
+				return i
+			}
+		}
+		return -1
+	}
+
+	p32 := pos("0.32.0")
+	p31 := pos("0.31.0")
+	p30 := pos("0.30.0")
+
+	if p32 == -1 || p31 == -1 || p30 == -1 {
+		t.Fatalf("not all versions found in output: %v", lines)
+	}
+	if !(p32 < p31 && p31 < p30) {
+		t.Fatalf("expected descending order 0.32.0 > 0.31.0 > 0.30.0, got positions %d %d %d",
+			p32, p31, p30)
+	}
+}
+
+func TestListRemote_DraftExcluded(t *testing.T) {
+	t.Setenv("VCENV_ROOT", t.TempDir())
+
+	releases := []github.Release{
+		{TagName: "v0.31.0", Prerelease: false, Draft: false},
+		{TagName: "v0.32.0-draft", Prerelease: false, Draft: true},
+	}
+	server := newMockServer(t, releases)
+	defer server.Close()
+
+	client := &github.Client{
+		BaseURL:    server.URL,
+		HTTPClient: server.Client(),
+	}
+
+	out := captureStdout(t, func() {
+		if err := listRemoteWithClient(client, false); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	if strings.Contains(out, "draft") {
+		t.Errorf("draft release should not appear in output, got: %s", out)
+	}
+}
+
+// ── github.Client.ListReleasesSince tests ─────────────────────────────────────
+
+func TestListReleasesSince_StopsEarly(t *testing.T) {
+	callCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		releases := []github.Release{
+			{TagName: "v0.32.0", Prerelease: false, Draft: false},
+			{TagName: "v0.31.0", Prerelease: false, Draft: false},
+			// 0.30.0 is the anchor — pagination should stop here.
+			{TagName: "v0.30.0", Prerelease: false, Draft: false},
+			{TagName: "v0.29.0", Prerelease: false, Draft: false},
+		}
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(releases); err != nil {
-			t.Fatalf("failed to encode: %v", err)
+			t.Fatalf("encode: %v", err)
 		}
 	}))
 	defer server.Close()
 
-	// We can't easily inject the client into ListRemote without refactoring,
-	// so we test the underlying github.Client directly in github/client_test.go.
-	// Here we just verify the function signature works with a basic test.
+	client := &github.Client{
+		BaseURL:    server.URL,
+		HTTPClient: server.Client(),
+	}
+
+	versions, err := client.ListReleasesSince("0.30.0", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Only 0.32.0 and 0.31.0 are strictly newer than 0.30.0.
+	if len(versions) != 2 {
+		t.Fatalf("expected 2 versions, got %d: %v", len(versions), versions)
+	}
+	if versions[0] != "0.32.0" || versions[1] != "0.31.0" {
+		t.Fatalf("expected [0.32.0 0.31.0], got %v", versions)
+	}
+	// Only one page should have been fetched.
+	if callCount != 1 {
+		t.Fatalf("expected 1 API call, got %d", callCount)
+	}
+}
+
+func TestListReleasesSince_EmptyAnchor_FullFetch(t *testing.T) {
+	releases := []github.Release{
+		{TagName: "v0.32.0", Prerelease: false, Draft: false},
+		{TagName: "v0.31.0", Prerelease: false, Draft: false},
+	}
+	server := newMockServer(t, releases)
+	defer server.Close()
+
+	client := &github.Client{
+		BaseURL:    server.URL,
+		HTTPClient: server.Client(),
+	}
+
+	// Empty anchor → behaves like ListReleases.
+	versions, err := client.ListReleasesSince("", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(versions) != 2 {
+		t.Fatalf("expected 2 versions, got %d: %v", len(versions), versions)
+	}
+}
+
+func TestListReleasesSince_NothingNewer(t *testing.T) {
+	releases := []github.Release{
+		{TagName: "v0.32.0", Prerelease: false, Draft: false},
+		{TagName: "v0.31.0", Prerelease: false, Draft: false},
+	}
+	server := newMockServer(t, releases)
+	defer server.Close()
+
+	client := &github.Client{
+		BaseURL:    server.URL,
+		HTTPClient: server.Client(),
+	}
+
+	// Anchor is the newest known version — nothing should be returned.
+	versions, err := client.ListReleasesSince("0.32.0", false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(versions) != 0 {
+		t.Fatalf("expected 0 versions, got %d: %v", len(versions), versions)
+	}
+}
+
+func TestListReleasesSince_IncludesPrereleases(t *testing.T) {
+	releases := []github.Release{
+		{TagName: "v0.33.0-alpha.1", Prerelease: true, Draft: false},
+		{TagName: "v0.32.0", Prerelease: false, Draft: false},
+		{TagName: "v0.31.0", Prerelease: false, Draft: false},
+	}
+	server := newMockServer(t, releases)
+	defer server.Close()
+
+	client := &github.Client{
+		BaseURL:    server.URL,
+		HTTPClient: server.Client(),
+	}
+
+	versions, err := client.ListReleasesSince("0.31.0", true)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Should include both 0.33.0-alpha.1 and 0.32.0.
+	if len(versions) != 2 {
+		t.Fatalf("expected 2 versions, got %d: %v", len(versions), versions)
+	}
+	found := false
+	for _, v := range versions {
+		if v == "0.33.0-alpha.1" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected pre-release in result, got %v", versions)
+	}
+}
+
+// ── Existing tests (preserved) ────────────────────────────────────────────────
+
+func TestListRemote(t *testing.T) {
 	t.Run("function exists and returns error on bad URL", func(t *testing.T) {
-		// ListRemote uses the default GitHub API URL, which we can't override
-		// without refactoring. The github client tests cover the actual logic.
-		// This test just verifies the function signature.
 		_ = ListRemote
 	})
 }
@@ -93,3 +437,5 @@ func TestListRemoteWithMockClient(t *testing.T) {
 		}
 	})
 }
+
+

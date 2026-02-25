@@ -75,6 +75,63 @@ func (c *Client) ListReleases(includePrerelease bool) ([]string, error) {
 	return semver.SortDescending(versions), nil
 }
 
+// ListReleasesSince fetches only the vcluster releases that are strictly newer
+// than sinceVersion (e.g. "0.21.0").  It stops paginating as soon as it
+// encounters a version that is ≤ sinceVersion, so it typically needs only one
+// API page when few or no new releases exist.
+//
+// If sinceVersion is empty the behaviour is identical to ListReleases.
+// If includePrerelease is false, pre-releases are filtered out of the result
+// (but they are still used as stop-markers during pagination).
+func (c *Client) ListReleasesSince(sinceVersion string, includePrerelease bool) ([]string, error) {
+	// Fast path: no anchor version — fall back to a full fetch.
+	if sinceVersion == "" {
+		return c.ListReleases(includePrerelease)
+	}
+
+	anchor := semver.Parse(sinceVersion)
+
+	var collected []string
+	page := 1
+
+	for {
+		url := fmt.Sprintf("%s/repos/loft-sh/vcluster/releases?per_page=100&page=%d", c.BaseURL, page)
+		releases, nextPage, err := c.fetchReleasesPage(url)
+		if err != nil {
+			return nil, err
+		}
+
+		done := false
+		for _, r := range releases {
+			if r.Draft {
+				continue
+			}
+			v := strings.TrimPrefix(r.TagName, "v")
+			if v == "" {
+				continue
+			}
+			parsed := semver.Parse(v)
+			// GitHub returns releases newest-first.  Stop as soon as we reach
+			// a version that is not newer than the anchor.
+			if !semver.Less(anchor, parsed) {
+				done = true
+				break
+			}
+			if !includePrerelease && r.Prerelease {
+				continue
+			}
+			collected = append(collected, v)
+		}
+
+		if done || nextPage == "" {
+			break
+		}
+		page++
+	}
+
+	return semver.SortDescending(collected), nil
+}
+
 // GetLatestRelease fetches the latest stable release version.
 func (c *Client) GetLatestRelease() (string, error) {
 	url := fmt.Sprintf("%s/repos/loft-sh/vcluster/releases/latest", c.BaseURL)

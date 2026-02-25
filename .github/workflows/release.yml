@@ -37,27 +37,25 @@ jobs:
         run: |
           docker buildx build \
             --platform linux/amd64 \
-            --build-arg VERSION=${{ github.ref_name }} \
-            -f Dockerfile.test \
+            -f Dockerfile.ci \
             -t vc-env-test:amd64 \
             --load .
 
       - name: Test linux/amd64 binary in Docker
         run: |
-          docker run --rm --platform linux/amd64 -e TERM=xterm vc-env-test:amd64
+          docker run --rm --platform linux/amd64 -v $(pwd)/build/vc-env-linux-amd64:/src/vc-env vc-env-test:amd64
 
       - name: Build test image (linux/arm64)
         run: |
           docker buildx build \
             --platform linux/arm64 \
-            --build-arg VERSION=${{ github.ref_name }} \
-            -f Dockerfile.test \
+            -f Dockerfile.ci \
             -t vc-env-test:arm64 \
             --load .
 
       - name: Test linux/arm64 binary in Docker
         run: |
-          docker run --rm --platform linux/arm64 -e TERM=xterm vc-env-test:arm64
+          docker run --rm --platform linux/arm64 -v $(pwd)/build/vc-env-linux-arm64:/src/vc-env vc-env-test:arm64
 
       - name: Generate release notes
         id: release_notes

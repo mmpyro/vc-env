@@ -13,23 +13,37 @@ func ListRemoteHelp() {
 List all available versions of vcluster cli from GitHub releases.
 Versions are printed from newest to oldest.
 
+Results are cached on disk (at $VCENV_ROOT/cache/releases.json) for one hour
+by default to avoid redundant network requests.  Set VCENV_CACHE_TTL to a Go
+duration string (e.g. "30m", "24h") to override the TTL.
+
 Flags:
   --prerelease   Include pre-release versions (e.g. alpha, beta, rc)
   -h, --help      Show this help message`)
 }
 
 // ListRemote prints all available vcluster versions from GitHub releases.
-// It does NOT require init — only queries GitHub.
+// It does NOT require init — only queries GitHub (or the local cache).
 func ListRemote(includePrerelease bool) error {
-	client := github.NewClient()
-	versions, err := client.ListReleases(includePrerelease)
+	return listRemoteWithClient(github.NewClient(), includePrerelease)
+}
+
+// listRemoteWithClient is the testable core of ListRemote.  It accepts an
+// injected GitHub client so tests can point it at a mock HTTP server.
+func listRemoteWithClient(client *github.Client, includePrerelease bool) error {
+	stable, pre, err := getRemoteVersions(client)
 	if err != nil {
-		return fmt.Errorf("failed to fetch remote versions: %w", err)
+		return err
+	}
+
+	versions := stable
+	if includePrerelease {
+		versions = pre
 	}
 
 	for _, v := range versions {
 		fmt.Println(v)
 	}
-
 	return nil
 }
+
