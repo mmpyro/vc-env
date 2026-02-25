@@ -19,6 +19,8 @@ Commands:
   global        Set or show the global version of vcluster cli
   latest        Print the latest available version of vcluster cli from GitHub releases.
   which         Print the full path to the active vcluster binary
+  exec          Run a command using a specific vcluster version
+  status        Show current vc-env environment status
   upgrade       Upgrade vc-env to the latest version
   version       Print the version of vc-env`)
 }

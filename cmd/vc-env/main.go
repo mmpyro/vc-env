@@ -106,6 +106,20 @@ func main() {
 	case "upgrade":
 		err = commands.Upgrade()
 
+	case "status":
+		err = commands.Status()
+
+	case "exec":
+		version := ""
+		execArgs := []string{}
+		if len(args) > 1 {
+			version = args[1]
+			if len(args) > 2 {
+				execArgs = args[2:]
+			}
+		}
+		err = commands.Exec(version, execArgs)
+
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n\n", args[0])
 		commands.Help()

@@ -440,3 +440,69 @@ Example:
 vc-env upgrade
 ```
 
+---
+
+### `exec`
+
+Purpose: Run a specific version of `vcluster` for a single command without changing the active version (shell, local, or global).
+
+Syntax:
+
+```text
+vc-env exec <version> <command> [args...]
+```
+
+Options/flags: none.
+
+Environment variables:
+
+- `VCENV_ROOT` (required)
+- `VCENV_VERSION` (set for the subprocess to match the requested version)
+
+Exit codes:
+
+- Exit code of the executed command.
+- `1` if the version is not installed or initialization fails.
+
+Example:
+
+```sh
+vc-env exec 0.21.1 version
+```
+
+---
+
+### `status`
+
+Purpose: Display a comprehensive overview of the current `vc-env` environment.
+
+Output includes:
+- `VCENV_ROOT` path.
+- Currently active version and the source it was resolved from.
+- Full path to the active `vcluster` binary.
+- List of all installed versions (active one marked with `*`).
+
+Syntax:
+
+```text
+vc-env status
+```
+
+Options/flags: none.
+
+Environment variables:
+
+- `VCENV_ROOT` (required)
+- `VCENV_VERSION` (read if set)
+
+Exit codes:
+
+- `0` on success.
+- `1` on error.
+
+Example:
+
+```sh
+vc-env status
+```
+

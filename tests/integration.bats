@@ -142,6 +142,31 @@ teardown() {
     assert_output --partial "Commands:"
 }
 
+@test "vc-env status shows environment information" {
+    vc-env init
+    local test_ver="0.21.1"
+    vc-env install "${test_ver}"
+    vc-env global "${test_ver}"
+    
+    run vc-env status
+    assert_success
+    assert_output --partial "VCENV_ROOT"
+    assert_output --partial "Active version: ${test_ver}"
+    assert_output --partial "set by global version file"
+    assert_output --partial "* ${test_ver}"
+}
+
+@test "vc-env exec runs specific version" {
+    vc-env init
+    local test_ver="0.21.1"
+    vc-env install "${test_ver}"
+    
+    # Run a command via exec
+    run vc-env exec "${test_ver}" version
+    assert_success
+    assert_output --regexp "([vV]ersion|[0-9]+\.[0-9]+\.[0-9])"
+}
+
 @test "vcluster shim end-to-end" {
     vc-env init
     local test_ver="0.21.1"

@@ -130,8 +130,10 @@ Full reference: [docs/cli-reference.md](docs/cli-reference.md)
 | `vc-env list-remote --prerelease` | Include pre-release vcluster versions |
 | `vc-env latest` | Print the latest available version of vcluster from GitHub |
 | `vc-env init` | Initialize vc-env setup |
+| `vc-env status` | Show current environment status |
 | `vc-env install [VERSION]` | Install a specific version (or latest) |
 | `vc-env uninstall VERSION` | Uninstall a specific version |
+| `vc-env exec VERSION CMD` | Run a command using a specific vcluster version |
 | `vc-env shell [VERSION]` | Set/show shell version (`VCENV_VERSION`) |
 | `vc-env local [VERSION]` | Set/show local version (`.vcluster-version`) |
 | `vc-env global [VERSION]` | Set/show global version (`$VCENV_ROOT/version`) |

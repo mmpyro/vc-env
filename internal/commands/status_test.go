@@ -1,0 +1,59 @@
+package commands
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestStatus(t *testing.T) {
+	t.Run("shows not initialized when VCENV_ROOT not set", func(t *testing.T) {
+		t.Setenv("VCENV_ROOT", "")
+		output := captureStdout(t, func() {
+			err := Status()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+		if !strings.Contains(output, "vc-env is not initialized") {
+			t.Fatalf("expected output to contain not initialized warning, got %q", output)
+		}
+	})
+
+	t.Run("shows full status when initialized", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("VCENV_ROOT", tmpDir)
+		t.Setenv("VCENV_VERSION", "0.31.0")
+
+		// Create versions directory and a version
+		for _, v := range []string{"0.31.0", "0.30.0"} {
+			if err := os.MkdirAll(filepath.Join(tmpDir, "versions", v), 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		output := captureStdout(t, func() {
+			err := Status()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+
+		if !strings.Contains(output, "VCENV_ROOT: "+tmpDir) {
+			t.Errorf("expected output to contain ROOT path, got %q", output)
+		}
+		if !strings.Contains(output, "Active version: 0.31.0") {
+			t.Errorf("expected output to contain active version, got %q", output)
+		}
+		if !strings.Contains(output, "set by VCENV_VERSION environment variable") {
+			t.Errorf("expected output to contain source, got %q", output)
+		}
+		if !strings.Contains(output, "* 0.31.0") {
+			t.Errorf("expected output to mark active version in list, got %q", output)
+		}
+		if !strings.Contains(output, "  0.30.0") {
+			t.Errorf("expected output to contain other versions, got %q", output)
+		}
+	})
+}
