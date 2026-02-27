@@ -18,7 +18,7 @@ func Status() error {
 		return nil
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, '\t', 0)
+	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, ' ', 0)
 
 	fmt.Fprintf(w, "VCENV_ROOT:\t%s\n", root)
 

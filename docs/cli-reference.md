@@ -506,3 +506,34 @@ Example:
 vc-env status
 ```
 
+---
+
+### `autocompletion`
+
+Purpose: Generate bash autocompletion script for `vc-env`.
+
+The script provides completion for subcommands and suggests installed versions for commands that accept a version argument (`install`, `uninstall`, `shell`, `local`, `global`, `exec`).
+
+Syntax:
+
+```text
+vc-env autocompletion
+```
+
+Options/flags:
+- `-h`, `--help`: show command help and exit
+
+Environment variables: none.
+
+Exit codes:
+- `0` on success.
+
+Example:
+
+```sh
+# Enable autocompletion for the current session
+source <(vc-env autocompletion)
+
+# Enable autocompletion permanently
+echo 'source <(vc-env autocompletion)' >> ~/.bashrc
+```

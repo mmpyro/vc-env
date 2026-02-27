@@ -40,11 +40,11 @@ func TestStatus(t *testing.T) {
 			}
 		})
 
-		if !strings.Contains(output, "VCENV_ROOT: "+tmpDir) {
-			t.Errorf("expected output to contain ROOT path, got %q", output)
+		if !strings.Contains(output, "VCENV_ROOT:") || !strings.Contains(output, tmpDir) {
+			t.Errorf("expected output to contain ROOT path %q, got %q", tmpDir, output)
 		}
-		if !strings.Contains(output, "Active version: 0.31.0") {
-			t.Errorf("expected output to contain active version, got %q", output)
+		if !strings.Contains(output, "Active version:") || !strings.Contains(output, "0.31.0") {
+			t.Errorf("expected output to contain active version 0.31.0, got %q", output)
 		}
 		if !strings.Contains(output, "set by VCENV_VERSION environment variable") {
 			t.Errorf("expected output to contain source, got %q", output)

@@ -106,6 +106,15 @@ func main() {
 	case "upgrade":
 		err = commands.Upgrade()
 
+	case "autocompletion":
+		for _, arg := range args[1:] {
+			if arg == "-h" || arg == "--help" {
+				commands.AutocompletionHelp()
+				os.Exit(0)
+			}
+		}
+		err = commands.Autocompletion()
+
 	case "status":
 		err = commands.Status()
 

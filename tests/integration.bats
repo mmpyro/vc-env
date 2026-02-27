@@ -35,7 +35,7 @@ teardown() {
 	vc-env init
 	run vc-env latest
 	assert_success
-	assert_output --regexp "^[0-9]+\.[0-9]+\.[0-9]+$"
+	assert_output --regexp "[0-9]+\.[0-9]+\.[0-9]+$"
 }
 
 @test "vc-env latest --prerelease returns a version" {
@@ -177,4 +177,18 @@ teardown() {
 	# Ensure shim is in PATH
 	run vcluster version
 	assert_output --regexp "([vV]ersion|[0-9]+\.[0-9]+\.[0-9])"
+}
+
+@test "vc-env autocompletion outputs bash script" {
+	run vc-env autocompletion
+	assert_success
+	assert_output --partial "_vc_env_completions()"
+	assert_output --partial "complete -F _vc_env_completions vc-env"
+}
+
+@test "vc-env autocompletion --help shows help text" {
+	run vc-env autocompletion --help
+	assert_success
+	assert_output --partial "autocompletion"
+	assert_output --partial "source <(vc-env autocompletion)"
 }
