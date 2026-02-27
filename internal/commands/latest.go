@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/user/vc-env/internal/github"
 )
@@ -33,9 +32,6 @@ func latestWithClient(client *github.Client, includePrerelease bool) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "DEBUG: includePrerelease=%v\n", includePrerelease)
-	fmt.Fprintf(os.Stderr, "DEBUG: stable=%v\n", stable)
-	fmt.Fprintf(os.Stderr, "DEBUG: pre=%v\n", pre)
 
 	versions := stable
 	if includePrerelease {
