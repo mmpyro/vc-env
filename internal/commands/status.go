@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"text/tabwriter"
 
 	"github.com/user/vc-env/internal/config"
 	"github.com/user/vc-env/internal/semver"
@@ -17,16 +18,19 @@ func Status() error {
 		return nil
 	}
 
-	fmt.Printf("VCENV_ROOT: %s\n", root)
+	w := tabwriter.NewWriter(os.Stdout, 0, 8, 2, '\t', 0)
+
+	fmt.Fprintf(w, "VCENV_ROOT:\t%s\n", root)
 
 	version, source := getActiveVersionWithSource()
 	if version == "" {
-		fmt.Println("Active version: none")
+		fmt.Fprintf(w, "Active version:\tnone\n")
 	} else {
-		fmt.Printf("Active version: %s (set by %s)\n", version, source)
+		fmt.Fprintf(w, "Active version:\t%s (set by %s)\n", version, source)
 		binaryPath, _ := config.GetBinaryPath(version)
-		fmt.Printf("Binary path:    %s\n", binaryPath)
+		fmt.Fprintf(w, "Binary path:\t%s\n", binaryPath)
 	}
+	w.Flush()
 
 	versionsDir := filepath.Join(root, "versions")
 	entries, err := os.ReadDir(versionsDir)
@@ -38,16 +42,16 @@ func Status() error {
 			}
 		}
 		installed = semver.SortDescending(installed)
-		fmt.Printf("Installed versions (%d):\n", len(installed))
+		fmt.Printf("\nInstalled versions (%d):\n", len(installed))
 		for _, v := range installed {
 			if v == version {
-				fmt.Printf("  * %s\n", v)
+				fmt.Printf("\t* %s\n", v)
 			} else {
-				fmt.Printf("    %s\n", v)
+				fmt.Printf("\t  %s\n", v)
 			}
 		}
 	} else {
-		fmt.Println("Installed versions: none")
+		fmt.Println("\nInstalled versions: none")
 	}
 
 	return nil
