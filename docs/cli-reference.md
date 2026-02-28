@@ -221,13 +221,18 @@ Purpose: Download and install a `vcluster` version into `$VCENV_ROOT/versions/<v
 
 If `<version>` is omitted, `vc-env` installs the latest stable version.
 
+The command displays a progress bar during the download and automatically verifies the integrity of the downloaded file using SHA256 checksums from the GitHub release.
+
 Syntax:
 
 ```text
-vc-env install [version]
+vc-env install [version] [flags]
 ```
 
-Options/flags: none.
+Options/flags:
+
+- `-s`, `--silent`: do not display the progress bar or checksum verification information
+- `-h`, `--help`: show command help and exit
 
 Environment variables:
 
@@ -236,12 +241,13 @@ Environment variables:
 Exit codes:
 
 - `0` on success.
-- `1` if not initialized, platform detection fails, download fails, or filesystem writes fail.
+- `1` if not initialized, platform detection fails, download fails, checksum mismatch, or filesystem writes fail.
 
 Example:
 
 ```sh
 vc-env install 0.21.1
+vc-env install --silent
 vc-env install
 ```
 
@@ -440,3 +446,100 @@ Example:
 vc-env upgrade
 ```
 
+---
+
+### `exec`
+
+Purpose: Run a specific version of `vcluster` for a single command without changing the active version (shell, local, or global).
+
+Syntax:
+
+```text
+vc-env exec <version> <command> [args...]
+```
+
+Options/flags: none.
+
+Environment variables:
+
+- `VCENV_ROOT` (required)
+- `VCENV_VERSION` (set for the subprocess to match the requested version)
+
+Exit codes:
+
+- Exit code of the executed command.
+- `1` if the version is not installed or initialization fails.
+
+Example:
+
+```sh
+vc-env exec 0.21.1 version
+```
+
+---
+
+### `status`
+
+Purpose: Display a comprehensive overview of the current `vc-env` environment.
+
+Output includes:
+- `VCENV_ROOT` path.
+- Currently active version and the source it was resolved from.
+- Full path to the active `vcluster` binary.
+- List of all installed versions (active one marked with `*`).
+
+Syntax:
+
+```text
+vc-env status
+```
+
+Options/flags: none.
+
+Environment variables:
+
+- `VCENV_ROOT` (required)
+- `VCENV_VERSION` (read if set)
+
+Exit codes:
+
+- `0` on success.
+- `1` on error.
+
+Example:
+
+```sh
+vc-env status
+```
+
+---
+
+### `autocompletion`
+
+Purpose: Generate bash autocompletion script for `vc-env`.
+
+The script provides completion for subcommands and suggests installed versions for commands that accept a version argument (`install`, `uninstall`, `shell`, `local`, `global`, `exec`).
+
+Syntax:
+
+```text
+vc-env autocompletion
+```
+
+Options/flags:
+- `-h`, `--help`: show command help and exit
+
+Environment variables: none.
+
+Exit codes:
+- `0` on success.
+
+Example:
+
+```sh
+# Enable autocompletion for the current session
+source <(vc-env autocompletion)
+
+# Enable autocompletion permanently
+echo 'source <(vc-env autocompletion)' >> ~/.bashrc
+```

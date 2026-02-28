@@ -27,6 +27,9 @@ func TestLatestWithMockClient(t *testing.T) {
 	}
 
 	t.Run("latest stable version uses cache/network", func(t *testing.T) {
+		// Isolate disk cache so we don't load a real on-disk cache from $VCENV_ROOT.
+		t.Setenv("VCENV_ROOT", t.TempDir())
+
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			if err := json.NewEncoder(w).Encode(releases); err != nil {
@@ -52,6 +55,9 @@ func TestLatestWithMockClient(t *testing.T) {
 	})
 
 	t.Run("latest with prerelease returns newest including alpha", func(t *testing.T) {
+		// Isolate disk cache so we don't load a real on-disk cache from $VCENV_ROOT.
+		t.Setenv("VCENV_ROOT", t.TempDir())
+
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			if err := json.NewEncoder(w).Encode(releases); err != nil {
