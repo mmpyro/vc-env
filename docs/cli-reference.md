@@ -221,13 +221,18 @@ Purpose: Download and install a `vcluster` version into `$VCENV_ROOT/versions/<v
 
 If `<version>` is omitted, `vc-env` installs the latest stable version.
 
+The command displays a progress bar during the download and automatically verifies the integrity of the downloaded file using SHA256 checksums from the GitHub release.
+
 Syntax:
 
 ```text
-vc-env install [version]
+vc-env install [version] [flags]
 ```
 
-Options/flags: none.
+Options/flags:
+
+- `-s`, `--silent`: do not display the progress bar or checksum verification information
+- `-h`, `--help`: show command help and exit
 
 Environment variables:
 
@@ -236,12 +241,13 @@ Environment variables:
 Exit codes:
 
 - `0` on success.
-- `1` if not initialized, platform detection fails, download fails, or filesystem writes fail.
+- `1` if not initialized, platform detection fails, download fails, checksum mismatch, or filesystem writes fail.
 
 Example:
 
 ```sh
 vc-env install 0.21.1
+vc-env install --silent
 vc-env install
 ```
 

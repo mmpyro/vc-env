@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/user/vc-env/internal/commands"
 )
@@ -67,10 +68,18 @@ func main() {
 
 	case "install":
 		version := ""
-		if len(args) > 1 {
-			version = args[1]
+		silent := false
+		for _, arg := range args[1:] {
+			if arg == "-s" || arg == "--silent" {
+				silent = true
+			} else if arg == "-h" || arg == "--help" {
+				commands.InstallHelp()
+				os.Exit(0)
+			} else if version == "" && !strings.HasPrefix(arg, "-") {
+				version = arg
+			}
 		}
-		err = commands.Install(version)
+		err = commands.Install(version, silent)
 
 	case "uninstall":
 		version := ""

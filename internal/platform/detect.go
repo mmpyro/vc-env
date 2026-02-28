@@ -50,13 +50,27 @@ func mapArch(goarch string) (string, error) {
 	}
 }
 
-// DownloadURL constructs the GitHub release download URL for a given version
-// and platform.
-func DownloadURL(version string, info Info) string {
-	// vcluster release naming convention:
-	// https://github.com/loft-sh/vcluster/releases/download/v{version}/vcluster-{os}-{arch}
+// DownloadPath returns the path part of the GitHub release download URL.
+func DownloadPath(version string, info Info) string {
 	return fmt.Sprintf(
-		"https://github.com/loft-sh/vcluster/releases/download/v%s/vcluster-%s-%s",
-		version, info.OS, info.Arch,
+		"loft-sh/vcluster/releases/download/v%s/%s",
+		version, BinaryName(info),
+	)
+}
+
+// BinaryName returns the vcluster binary name for the given platform.
+func BinaryName(info Info) string {
+	name := fmt.Sprintf("vcluster-%s-%s", info.OS, info.Arch)
+	if info.OS == "windows" {
+		name += ".exe"
+	}
+	return name
+}
+
+// ChecksumPath returns the path part of the URL for the checksums.txt file.
+func ChecksumPath(version string) string {
+	return fmt.Sprintf(
+		"loft-sh/vcluster/releases/download/v%s/checksums.txt",
+		version,
 	)
 }
