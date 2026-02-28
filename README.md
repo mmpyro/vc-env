@@ -154,20 +154,24 @@ If no version is configured at any level, the command fails with an informative 
 
 ### Bash
 
-Add to `~/.bashrc`:
+Add the following to your `~/.bashrc`:
 
 ```sh
+# vc-env setup
 export VCENV_ROOT="$HOME/.vcenv"
 eval "$(vc-env init)"
+source <(vc-env autocompletion)
 ```
 
 ### Zsh
 
-Add to `~/.zshrc`:
+Add the following to your `~/.zshrc`:
 
 ```sh
+# vc-env setup
 export VCENV_ROOT="$HOME/.vcenv"
 eval "$(vc-env init)"
+source <(vc-env autocompletion)
 ```
 
 ## Caching
