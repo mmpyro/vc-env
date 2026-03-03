@@ -54,8 +54,12 @@ func TestInstall(t *testing.T) {
 		t.Setenv("VCENV_ROOT", tmpDir)
 		version := "0.31.0"
 		versionDir := filepath.Join(tmpDir, "versions", version)
-		os.MkdirAll(versionDir, 0o755)
-		os.WriteFile(filepath.Join(versionDir, "vcluster"), []byte("binary"), 0o755)
+		if err := os.MkdirAll(versionDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(versionDir, "vcluster"), []byte("binary"), 0o755); err != nil {
+			t.Fatal(err)
+		}
 
 		output := captureStdout(t, func() {
 			err := Install(version, true)
@@ -88,7 +92,7 @@ func TestInstall(t *testing.T) {
 				return
 			}
 			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(binaryData)))
-			w.Write(binaryData)
+			_, _ = w.Write(binaryData)
 		}))
 		defer server.Close()
 
