@@ -35,7 +35,7 @@ func TestDetect(t *testing.T) {
 	}
 }
 
-func TestDownloadURL(t *testing.T) {
+func TestDownloadPath(t *testing.T) {
 	tests := []struct {
 		version  string
 		info     Info
@@ -44,25 +44,25 @@ func TestDownloadURL(t *testing.T) {
 		{
 			version:  "0.31.0",
 			info:     Info{OS: "linux", Arch: "amd64"},
-			expected: "https://github.com/loft-sh/vcluster/releases/download/v0.31.0/vcluster-linux-amd64",
+			expected: "loft-sh/vcluster/releases/download/v0.31.0/vcluster-linux-amd64",
 		},
 		{
 			version:  "0.32.0",
 			info:     Info{OS: "darwin", Arch: "arm64"},
-			expected: "https://github.com/loft-sh/vcluster/releases/download/v0.32.0/vcluster-darwin-arm64",
+			expected: "loft-sh/vcluster/releases/download/v0.32.0/vcluster-darwin-arm64",
 		},
 		{
 			version:  "1.0.0",
 			info:     Info{OS: "linux", Arch: "arm64"},
-			expected: "https://github.com/loft-sh/vcluster/releases/download/v1.0.0/vcluster-linux-arm64",
+			expected: "loft-sh/vcluster/releases/download/v1.0.0/vcluster-linux-arm64",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.version+"_"+tt.info.OS+"_"+tt.info.Arch, func(t *testing.T) {
-			url := DownloadURL(tt.version, tt.info)
-			if url != tt.expected {
-				t.Fatalf("expected %s, got %s", tt.expected, url)
+			path := DownloadPath(tt.version, tt.info)
+			if path != tt.expected {
+				t.Fatalf("expected %s, got %s", tt.expected, path)
 			}
 		})
 	}

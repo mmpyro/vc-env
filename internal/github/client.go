@@ -3,6 +3,7 @@
 package github
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,18 +24,25 @@ type Release struct {
 
 // Client is a GitHub API client for fetching vcluster releases.
 type Client struct {
-	BaseURL    string
-	HTTPClient *http.Client
+	BaseURL         string
+	DownloadBaseURL string
+	HTTPClient      *http.Client
 }
 
 // NewClient creates a new GitHub API client with default settings.
 func NewClient() *Client {
 	return &Client{
-		BaseURL: "https://api.github.com",
+		BaseURL:         "https://api.github.com",
+		DownloadBaseURL: "https://github.com",
 		HTTPClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
 	}
+}
+
+// DownloadURL returns the full download URL given a path.
+func (c *Client) DownloadURL(path string) string {
+	return fmt.Sprintf("%s/%s", c.DownloadBaseURL, path)
 }
 
 // ListReleases fetches all vcluster releases from GitHub.
@@ -278,4 +286,52 @@ func (c *Client) DownloadBinary(url string) ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+// DownloadWithProgress downloads a file from the given URL and reports progress via a callback.
+func (c *Client) DownloadWithProgress(url string, onProgress func(total, current int64)) ([]byte, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create download request: %w", err)
+	}
+	req.Header.Set("User-Agent", "vc-env")
+
+	downloadClient := &http.Client{Timeout: 10 * time.Minute}
+	resp, err := downloadClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to download: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("file not found at %s", url)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("download failed with status %d", resp.StatusCode)
+	}
+
+	total := resp.ContentLength
+	var current int64
+	var buf bytes.Buffer
+
+	// Create a proxy reader to track progress
+	chunk := make([]byte, 32*1024) // 32KB chunks
+	for {
+		n, err := resp.Body.Read(chunk)
+		if n > 0 {
+			current += int64(n)
+			buf.Write(chunk[:n])
+			if onProgress != nil {
+				onProgress(total, current)
+			}
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to read response body: %w", err)
+		}
+	}
+
+	return buf.Bytes(), nil
 }

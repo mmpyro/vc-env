@@ -130,8 +130,10 @@ Full reference: [docs/cli-reference.md](docs/cli-reference.md)
 | `vc-env list-remote --prerelease` | Include pre-release vcluster versions |
 | `vc-env latest` | Print the latest available version of vcluster from GitHub |
 | `vc-env init` | Initialize vc-env setup |
+| `vc-env status` | Show current environment status |
 | `vc-env install [VERSION]` | Install a specific version (or latest) |
 | `vc-env uninstall VERSION` | Uninstall a specific version |
+| `vc-env exec VERSION CMD` | Run a command using a specific vcluster version |
 | `vc-env shell [VERSION]` | Set/show shell version (`VCENV_VERSION`) |
 | `vc-env local [VERSION]` | Set/show local version (`.vcluster-version`) |
 | `vc-env global [VERSION]` | Set/show global version (`$VCENV_ROOT/version`) |
@@ -152,20 +154,24 @@ If no version is configured at any level, the command fails with an informative 
 
 ### Bash
 
-Add to `~/.bashrc`:
+Add the following to your `~/.bashrc`:
 
 ```sh
+# vc-env setup
 export VCENV_ROOT="$HOME/.vcenv"
 eval "$(vc-env init)"
+source <(vc-env autocompletion)
 ```
 
 ### Zsh
 
-Add to `~/.zshrc`:
+Add the following to your `~/.zshrc`:
 
 ```sh
+# vc-env setup
 export VCENV_ROOT="$HOME/.vcenv"
 eval "$(vc-env init)"
+source <(vc-env autocompletion)
 ```
 
 ## Caching
