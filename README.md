@@ -139,6 +139,7 @@ Full reference: [docs/cli-reference.md](docs/cli-reference.md)
 | `vc-env global [VERSION]` | Set/show global version (`$VCENV_ROOT/version`) |
 | `vc-env which` | Print path to active vcluster binary |
 | `vc-env version` | Print vc-env version |
+| `vc-env upgrade` | Download the latest stable release of vc-env from GitHub and replace the current binary in-place |
 
 ## Version Priority
 
