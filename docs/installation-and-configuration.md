@@ -32,7 +32,7 @@ No existing `vcluster` installation is required; `vc-env` manages the `vcluster`
 Example (Linux x86_64):
 
 ```sh
-curl -L -o vc-env https://github.com/mmpyro/vc-env/releases/download/v.0.1.0/vc-env-linux-amd64
+curl -L -o vc-env https://github.com/mmpyro/vc-env/releases/download/v1.0.0/vc-env-linux-amd64
 chmod +x vc-env
 sudo mv vc-env /usr/local/bin/vc-env
 ```
