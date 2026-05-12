@@ -6,7 +6,7 @@ import "fmt"
 // built for the given version and platform.
 //
 // Asset naming convention: vc-env-{os}-{arch}
-// Example: https://github.com/mmpyro/vc-env/releases/download/v0.2.0/vc-env-darwin-arm64
+// Example: https://github.com/mmpyro/vc-env/releases/download/v1.0.0/vc-env-darwin-arm64
 func SelfDownloadURL(version string, info Info, ownerRepo string) string {
 	return fmt.Sprintf(
 		"https://github.com/%s/releases/download/v%s/vc-env-%s-%s",
