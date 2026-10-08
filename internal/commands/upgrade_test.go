@@ -128,7 +128,7 @@ func TestAtomicReplace(t *testing.T) {
 func TestSelfDownloadURLFormat(t *testing.T) {
 	// Verify the URL format matches what release.yml publishes.
 	info := platform.Info{OS: "darwin", Arch: "arm64"}
-	url := platform.SelfDownloadURL("0.2.0", info, "mmpyro/vc-env")
+	url := platform.SelfDownloadURL("https://github.com", "0.2.0", info, "mmpyro/vc-env")
 
 	expected := "https://github.com/mmpyro/vc-env/releases/download/v0.2.0/vc-env-darwin-arm64"
 	if url != expected {
@@ -137,5 +137,16 @@ func TestSelfDownloadURLFormat(t *testing.T) {
 
 	if !strings.Contains(url, "mmpyro/vc-env") {
 		t.Fatal("URL should contain the correct owner/repo")
+	}
+}
+
+func TestSelfDownloadURLMirror(t *testing.T) {
+	// Verify a custom mirror is honoured and trailing slashes are tolerated.
+	info := platform.Info{OS: "linux", Arch: "amd64"}
+	url := platform.SelfDownloadURL("https://mirror.example.com/", "0.2.0", info, "mmpyro/vc-env")
+
+	expected := "https://mirror.example.com/mmpyro/vc-env/releases/download/v0.2.0/vc-env-linux-amd64"
+	if url != expected {
+		t.Fatalf("expected %s, got %s", expected, url)
 	}
 }

@@ -58,7 +58,7 @@ func Upgrade() error {
 	}
 
 	// 5. Build the asset download URL.
-	url := platform.SelfDownloadURL(latestVersion, info, vcenvRepo)
+	url := platform.SelfDownloadURL(client.DownloadBaseURL, latestVersion, info, vcenvRepo)
 	fmt.Printf("Downloading vc-env %s for %s/%s...\n", latestVersion, info.OS, info.Arch)
 
 	// 6. Download the new binary.

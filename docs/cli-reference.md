@@ -30,6 +30,24 @@ Optional. When set, it forces a particular `vcluster` version to be used (highes
 
 Typically set via `vc-env shell` after enabling shell integration with `eval "$(vc-env init)"`.
 
+### `VCENV_GITHUB_TOKEN`
+
+Optional. GitHub personal access token used to authenticate requests to the GitHub API (and asset downloads from private mirrors / GHES). When set it is sent as `Authorization: Bearer <token>` on every GitHub request issued by `vc-env`, raising the anonymous rate limit (60/h) to the authenticated limit (5000/h).
+
+Takes precedence over `GITHUB_TOKEN` so that a shell-wide `GITHUB_TOKEN` cannot silently change `vc-env` behaviour.
+
+### `GITHUB_TOKEN`
+
+Optional. Fallback GitHub token used only when `VCENV_GITHUB_TOKEN` is unset. Convenient in CI environments where `GITHUB_TOKEN` is already injected by the runner (for example GitHub Actions).
+
+### `VCENV_GITHUB_API_URL`
+
+Optional. Overrides the GitHub API base URL (default `https://api.github.com`). Set this to point `vc-env` at a GitHub Enterprise Server instance, for example `https://ghe.example.com/api/v3`.
+
+### `VCENV_DOWNLOAD_MIRROR`
+
+Optional. Overrides the asset download base URL (default `https://github.com`). Set this to pull `vcluster` and `vc-env` release assets from an internal mirror (for air-gapped environments). `vc-env install`, `vc-env latest`, and `vc-env upgrade` all honour this value.
+
 ## Commands
 
 ### `help`
