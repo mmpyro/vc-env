@@ -77,6 +77,88 @@ func TestLess(t *testing.T) {
 	}
 }
 
+func TestIsAlias(t *testing.T) {
+	tests := []struct {
+		in   string
+		want bool
+	}{
+		// Named aliases
+		{"latest", true},
+		{"latest-stable", true},
+		{"latest-prerelease", true},
+		// Partial MAJOR.MINOR
+		{"0.21", true},
+		{"v0.21", true},
+		{"1.2", true},
+		// Tilde range
+		{"~0.21.1", true},
+		{"~v0.21.1", true},
+		// Concrete versions
+		{"0.21.1", false},
+		{"v0.21.1", false},
+		{"0.21.1-alpha", false},
+		// Invalid shapes
+		{"", false},
+		{"xyz", false},
+		{"0", false},
+		{"0.a", false},
+		{"~0.21", false},
+		{"~0.21.1-alpha", false}, // only MAJOR.MINOR.PATCH supported after ~
+		{"0.21.1.0", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.in, func(t *testing.T) {
+			got := IsAlias(tt.in)
+			if got != tt.want {
+				t.Errorf("IsAlias(%q) = %v, want %v", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMatchAlias(t *testing.T) {
+	candidates := []string{
+		"0.22.1", "0.22.0",
+		"0.21.3", "0.21.2", "0.21.1", "0.21.0",
+		"0.21.4-alpha", "0.21.4-beta",
+		"0.20.5",
+	}
+
+	tests := []struct {
+		alias   string
+		want    string
+		wantOk  bool
+	}{
+		// MAJOR.MINOR picks highest patch of that minor, excludes prereleases.
+		{"0.21", "0.21.3", true},
+		{"0.22", "0.22.1", true},
+		{"0.20", "0.20.5", true},
+		{"v0.21", "0.21.3", true},
+		// No match
+		{"0.19", "", false},
+		{"1.0", "", false},
+		// Tilde: >=X.Y.Z, <X.(Y+1).0 — same minor, >= floor.
+		{"~0.21.1", "0.21.3", true},
+		{"~0.21.3", "0.21.3", true},
+		{"~0.21.4", "", false}, // only prereleases exist at 0.21.4, excluded
+		{"~0.22.0", "0.22.1", true},
+		{"~0.20.0", "0.20.5", true},
+		// Invalid aliases
+		{"latest", "", false},        // caller handles named aliases
+		{"0.21.1", "", false},        // concrete, not an alias
+		{"~0.21", "", false},         // tilde requires MAJOR.MINOR.PATCH
+		{"~bad.x.y", "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.alias, func(t *testing.T) {
+			got, ok := MatchAlias(tt.alias, candidates)
+			if ok != tt.wantOk || got != tt.want {
+				t.Errorf("MatchAlias(%q) = (%q, %v), want (%q, %v)", tt.alias, got, ok, tt.want, tt.wantOk)
+			}
+		})
+	}
+}
+
 func TestSortDescending(t *testing.T) {
 	tests := []struct {
 		name  string

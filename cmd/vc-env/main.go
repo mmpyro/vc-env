@@ -67,19 +67,39 @@ func main() {
 		err = commands.Latest(includePrerelease)
 
 	case "install":
-		version := ""
-		silent := false
-		for _, arg := range args[1:] {
-			if arg == "-s" || arg == "--silent" {
-				silent = true
-			} else if arg == "-h" || arg == "--help" {
+		opts := commands.InstallOptions{}
+		rest := args[1:]
+		for i := 0; i < len(rest); i++ {
+			arg := rest[i]
+			switch {
+			case arg == "-s" || arg == "--silent":
+				opts.Silent = true
+			case arg == "-h" || arg == "--help":
 				commands.InstallHelp()
 				os.Exit(0)
-			} else if version == "" && !strings.HasPrefix(arg, "-") {
-				version = arg
+			case arg == "--from-file":
+				if i+1 >= len(rest) {
+					fmt.Fprintln(os.Stderr, "--from-file requires a path argument")
+					os.Exit(1)
+				}
+				i++
+				opts.FromFile = rest[i]
+			case strings.HasPrefix(arg, "--from-file="):
+				opts.FromFile = strings.TrimPrefix(arg, "--from-file=")
+			case arg == "--sha256":
+				if i+1 >= len(rest) {
+					fmt.Fprintln(os.Stderr, "--sha256 requires a hex digest argument")
+					os.Exit(1)
+				}
+				i++
+				opts.SHA256 = rest[i]
+			case strings.HasPrefix(arg, "--sha256="):
+				opts.SHA256 = strings.TrimPrefix(arg, "--sha256=")
+			case opts.Version == "" && !strings.HasPrefix(arg, "-"):
+				opts.Version = arg
 			}
 		}
-		err = commands.Install(version, silent)
+		err = commands.InstallWith(opts)
 
 	case "uninstall":
 		version := ""
@@ -137,6 +157,30 @@ func main() {
 			}
 		}
 		err = commands.Exec(version, execArgs)
+
+	case "resolve":
+		version := ""
+		for _, arg := range args[1:] {
+			if arg == "-h" || arg == "--help" {
+				commands.ResolveHelp()
+				os.Exit(0)
+			} else if version == "" && !strings.HasPrefix(arg, "-") {
+				version = arg
+			}
+		}
+		err = commands.Resolve(version)
+
+	case "ensure":
+		version := ""
+		for _, arg := range args[1:] {
+			if arg == "-h" || arg == "--help" {
+				commands.EnsureHelp()
+				os.Exit(0)
+			} else if version == "" && !strings.HasPrefix(arg, "-") {
+				version = arg
+			}
+		}
+		err = commands.Ensure(version)
 
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n\n", args[0])

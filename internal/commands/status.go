@@ -7,6 +7,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/user/vc-env/internal/config"
+	"github.com/user/vc-env/internal/github"
 	"github.com/user/vc-env/internal/semver"
 )
 
@@ -27,8 +28,18 @@ func Status() error {
 		fmt.Fprintf(w, "Active version:\tnone\n")
 	} else {
 		fmt.Fprintf(w, "Active version:\t%s (set by %s)\n", version, source)
-		binaryPath, _ := config.GetBinaryPath(version)
+		resolved := version
+		if semver.IsAlias(version) {
+			if concrete, err := resolveAlias(github.NewClient(), version); err == nil {
+				resolved = concrete
+				fmt.Fprintf(w, "Resolved to:\t%s\n", concrete)
+			} else {
+				fmt.Fprintf(w, "Resolved to:\t<unresolved: %v>\n", err)
+			}
+		}
+		binaryPath, _ := config.GetBinaryPath(resolved)
 		fmt.Fprintf(w, "Binary path:\t%s\n", binaryPath)
+		version = resolved
 	}
 	w.Flush()
 

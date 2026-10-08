@@ -69,6 +69,23 @@ func TestShell(t *testing.T) {
 		}
 	})
 
+	t.Run("accepts alias without installed check", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("VCENV_ROOT", tmpDir)
+		if err := os.MkdirAll(filepath.Join(tmpDir, "versions"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		output := captureStdout(t, func() {
+			if err := Shell("latest"); err != nil {
+				t.Fatalf("unexpected error for alias: %v", err)
+			}
+		})
+		if !strings.Contains(output, "export VCENV_VERSION=latest") {
+			t.Fatalf("expected export command for alias, got %q", output)
+		}
+	})
+
 	t.Run("outputs export when version is installed", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("VCENV_ROOT", tmpDir)

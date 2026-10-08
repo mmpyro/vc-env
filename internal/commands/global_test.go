@@ -82,6 +82,26 @@ func TestGlobal(t *testing.T) {
 		}
 	})
 
+	t.Run("accepts alias without installed check", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("VCENV_ROOT", tmpDir)
+		if err := os.MkdirAll(filepath.Join(tmpDir, "versions"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := Global("0.21"); err != nil {
+			t.Fatalf("unexpected error for alias: %v", err)
+		}
+
+		data, err := os.ReadFile(filepath.Join(tmpDir, "version"))
+		if err != nil {
+			t.Fatalf("failed to read version file: %v", err)
+		}
+		if strings.TrimSpace(string(data)) != "0.21" {
+			t.Fatalf("expected alias to be stored verbatim, got %q", strings.TrimSpace(string(data)))
+		}
+	})
+
 	t.Run("fails when no global version configured", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("VCENV_ROOT", tmpDir)

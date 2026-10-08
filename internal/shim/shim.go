@@ -60,9 +60,25 @@ resolve_version() {
 VERSION="$(resolve_version)"
 BINARY="$VCENV_ROOT/versions/$VERSION/vcluster"
 
+# If the binary isn't present, either $VERSION is a version alias
+# (e.g. "latest", "0.21", "~0.21.1") or it's a concrete version that
+# hasn't been installed yet.  Delegate to vc-env to resolve/install.
+if [ ! -x "$BINARY" ]; then
+    if [ "$VCENV_AUTO_INSTALL" = "1" ]; then
+        VERSION="$(command vc-env ensure "$VERSION")" || exit $?
+    else
+        resolved="$(command vc-env resolve "$VERSION" 2>/dev/null)" || true
+        if [ -n "$resolved" ]; then
+            VERSION="$resolved"
+        fi
+    fi
+    BINARY="$VCENV_ROOT/versions/$VERSION/vcluster"
+fi
+
 if [ ! -x "$BINARY" ]; then
     echo "vc-env: version $VERSION is not installed" >&2
     echo "Install it with: vc-env install $VERSION" >&2
+    echo "Or set VCENV_AUTO_INSTALL=1 to install automatically." >&2
     exit 1
 fi
 
