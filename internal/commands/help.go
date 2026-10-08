@@ -22,7 +22,7 @@ Commands:
   exec            Run a command using a specific vcluster version
   status          Show current vc-env environment status
   upgrade         Upgrade vc-env to the latest version
-  autocompletion  Generate bash autocompletion script
+  completion      Generate a shell completion script (bash|zsh|fish|powershell)
   version         Print the version of vc-env`)
 }
 
