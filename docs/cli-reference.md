@@ -8,6 +8,27 @@ Conventions:
 - On errors, commands typically print an error message to stderr and exit with code `1`.
 - Some commands print help and exit `0`.
 
+## Command summary
+
+| Command | What it does |
+|---|---|
+| [`help`](#help) | Print usage and the list of commands |
+| [`version`](#version) | Print the `vc-env` version |
+| [`init`](#init) | Create the `VCENV_ROOT` layout and print shell integration code |
+| [`list`](#list) | List installed `vcluster` versions |
+| [`list-remote`](#list-remote) | List `vcluster` versions available on GitHub |
+| [`latest`](#latest) | Print the latest `vcluster` release on GitHub |
+| [`install`](#install) | Download, checksum-verify and install a `vcluster` version |
+| [`uninstall`](#uninstall) | Remove an installed `vcluster` version |
+| [`shell`](#shell) | Set or show the shell-level version (`VCENV_VERSION`) |
+| [`local`](#local) | Set or show the directory-level version (`.vcluster-version`) |
+| [`global`](#global) | Set or show the global default (`$VCENV_ROOT/version`) |
+| [`which`](#which) | Print the full path to the active `vcluster` binary |
+| [`upgrade`](#upgrade) | Replace the current `vc-env` binary with the latest release |
+| [`exec`](#exec) | Run `vcluster` at a specific version for a single command |
+| [`status`](#status) | Show `VCENV_ROOT`, resolved version, source and all installed versions |
+| [`autocompletion`](#autocompletion) | Print a bash autocompletion script |
+
 ## Global usage
 
 ```text
@@ -130,6 +151,11 @@ Exit codes:
 
 - `0` on success.
 - `1` if `VCENV_ROOT` is not set or filesystem operations fail.
+
+!!! note "Eval, not source"
+    `vc-env init` emits shell code to stdout; `eval "$(vc-env init)"`
+    is what makes the shim and the `vc-env` shell function available in
+    the current shell.
 
 Example:
 
@@ -261,6 +287,13 @@ Exit codes:
 - `0` on success.
 - `1` if not initialized, platform detection fails, download fails, checksum mismatch, or filesystem writes fail.
 
+!!! warning "Rate limits and air-gapped environments"
+    Without a token, GitHub applies a 60 requests/hour anonymous limit
+    per IP, which is easy to exhaust on shared CI runners. Export
+    `VCENV_GITHUB_TOKEN` (or `GITHUB_TOKEN` in CI) to raise it to
+    5000/h. To pull assets from a mirror instead of `github.com`, set
+    `VCENV_DOWNLOAD_MIRROR`.
+
 Example:
 
 ```sh
@@ -304,7 +337,11 @@ vc-env uninstall 0.21.1
 
 Purpose: Set or show the shell-level `vcluster` version.
 
-Important: To *set* the version for your current shell session, you must have shell integration enabled via `eval "$(vc-env init)"`. Otherwise, you will only see the printed `export ...` line but your current shell will not be updated.
+!!! note "Requires shell integration"
+    To *set* the version for your current shell session, you must have
+    shell integration enabled via `eval "$(vc-env init)"`. Otherwise,
+    you will only see the printed `export …` line but your current
+    shell will not be updated.
 
 Syntax:
 
@@ -470,6 +507,12 @@ vc-env upgrade
 
 Purpose: Run a specific version of `vcluster` for a single command without changing the active version (shell, local, or global).
 
+!!! tip "One-off calls"
+    `exec` is the right tool when you need a different `vcluster`
+    version for a single command and don't want to touch any of the
+    three persistent sources (`VCENV_VERSION`, `.vcluster-version`,
+    `$VCENV_ROOT/version`).
+
 Syntax:
 
 ```text
@@ -501,6 +544,7 @@ vc-env exec 0.21.1 version
 Purpose: Display a comprehensive overview of the current `vc-env` environment.
 
 Output includes:
+
 - `VCENV_ROOT` path.
 - Currently active version and the source it was resolved from.
 - Full path to the active `vcluster` binary.
@@ -545,19 +589,35 @@ vc-env autocompletion
 ```
 
 Options/flags:
+
 - `-h`, `--help`: show command help and exit
 
 Environment variables: none.
 
 Exit codes:
+
 - `0` on success.
 
-Example:
+Examples:
 
-```sh
-# Enable autocompletion for the current session
-source <(vc-env autocompletion)
+=== "bash"
 
-# Enable autocompletion permanently
-echo 'source <(vc-env autocompletion)' >> ~/.bashrc
-```
+    ```sh
+    # Current session only
+    source <(vc-env autocompletion)
+
+    # Permanent
+    echo 'source <(vc-env autocompletion)' >> ~/.bashrc
+    ```
+
+=== "zsh"
+
+    ```sh
+    # Current session only (zsh understands the bash completion spec via
+    # bashcompinit).
+    autoload -Uz +X compinit && compinit
+    autoload -Uz +X bashcompinit && bashcompinit
+    source <(vc-env autocompletion)
+
+    # Permanent — add the three lines above to ~/.zshrc
+    ```
