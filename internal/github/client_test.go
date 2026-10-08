@@ -456,3 +456,41 @@ func TestAuthorizationHeaderSent(t *testing.T) {
 		}
 	})
 }
+
+func TestDownloadURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		base     string
+		path     string
+		expected string
+	}{
+		{
+			name:     "no trailing slash",
+			base:     "https://github.com",
+			path:     "mmpyro/vc-env/releases/download/v0.2.0/vc-env-linux-amd64",
+			expected: "https://github.com/mmpyro/vc-env/releases/download/v0.2.0/vc-env-linux-amd64",
+		},
+		{
+			name:     "mirror with trailing slash is tolerated",
+			base:     "https://mirror.example.com/",
+			path:     "mmpyro/vc-env/releases/download/v0.2.0/checksums.txt",
+			expected: "https://mirror.example.com/mmpyro/vc-env/releases/download/v0.2.0/checksums.txt",
+		},
+		{
+			name:     "mirror with multiple trailing slashes is tolerated",
+			base:     "https://mirror.example.com///",
+			path:     "foo/bar",
+			expected: "https://mirror.example.com/foo/bar",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Client{DownloadBaseURL: tt.base}
+			got := c.DownloadURL(tt.path)
+			if got != tt.expected {
+				t.Fatalf("expected %q, got %q", tt.expected, got)
+			}
+		})
+	}
+}
