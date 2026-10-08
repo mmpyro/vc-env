@@ -6,10 +6,6 @@ import (
 	"strings"
 )
 
-// subcommandList is the space-separated list of top-level subcommands offered
-// to completion engines. Keep in sync with the dispatcher in cmd/vc-env/main.go.
-const subcommandList = "help list list-remote init install uninstall shell local global latest which exec status upgrade version completion"
-
 // Completion prints a shell completion script for the requested shell.
 // Supported shells: bash, zsh, fish, powershell (alias: pwsh).
 func Completion(shell string) error {
