@@ -59,6 +59,16 @@ This produces binaries for:
 - `darwin/amd64`
 - `darwin/arm64`
 
+### CI tip
+
+If you use `vc-env` from CI (for example GitHub Actions), export `GITHUB_TOKEN`
+(or the vc-env-specific `VCENV_GITHUB_TOKEN`) before invoking `vc-env install`,
+`vc-env latest`, or `vc-env list-remote`. Without a token, GitHub applies an
+anonymous rate limit of 60 requests per hour per IP, which is easy to hit on
+shared CI runners; an authenticated request raises the quota to 5000/h. See
+[docs/cli-reference.md](docs/cli-reference.md#environment-variables) for the
+full list of supported environment variables.
+
 ## Quick Start
 
 ### 1. Set up VCENV_ROOT
