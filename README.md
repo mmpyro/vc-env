@@ -105,7 +105,16 @@ vc-env install 0.21.1
 
 # Install the latest stable version
 vc-env install
+
+# Install using an alias (resolves to a concrete version)
+vc-env install latest        # newest non-prerelease
+vc-env install 0.21          # highest 0.21.x
+vc-env install ~0.21.1       # highest 0.21.y with y >= 1
 ```
+
+Tip: set `VCENV_AUTO_INSTALL=1` in your shell profile and the `vcluster`
+shim will install missing versions automatically on first use — ideal when
+teammates clone a repo containing a `.vcluster-version` file.
 
 ### 4. Set a version
 
@@ -141,12 +150,14 @@ Full reference: [docs/cli-reference.md](docs/cli-reference.md)
 | `vc-env latest` | Print the latest available version of vcluster from GitHub |
 | `vc-env init` | Initialize vc-env setup |
 | `vc-env status` | Show current environment status |
-| `vc-env install [VERSION]` | Install a specific version (or latest) |
+| `vc-env install [VERSION\|ALIAS]` | Install a specific version or alias (or latest). Supports `--from-file`, `--sha256` |
 | `vc-env uninstall VERSION` | Uninstall a specific version |
 | `vc-env exec VERSION CMD` | Run a command using a specific vcluster version |
-| `vc-env shell [VERSION]` | Set/show shell version (`VCENV_VERSION`) |
-| `vc-env local [VERSION]` | Set/show local version (`.vcluster-version`) |
-| `vc-env global [VERSION]` | Set/show global version (`$VCENV_ROOT/version`) |
+| `vc-env shell [VERSION\|ALIAS]` | Set/show shell version (`VCENV_VERSION`) |
+| `vc-env local [VERSION\|ALIAS]` | Set/show local version (`.vcluster-version`) |
+| `vc-env global [VERSION\|ALIAS]` | Set/show global version (`$VCENV_ROOT/version`) |
+| `vc-env resolve VERSION\|ALIAS` | Print the concrete version an alias resolves to |
+| `vc-env ensure VERSION\|ALIAS` | Resolve + install if missing (used by shim auto-install) |
 | `vc-env which` | Print path to active vcluster binary |
 | `vc-env version` | Print vc-env version |
 | `vc-env upgrade` | Download the latest stable release of vc-env from GitHub and replace the current binary in-place |

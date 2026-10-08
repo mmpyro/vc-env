@@ -49,6 +49,15 @@ func TestGenerateShimScript(t *testing.T) {
 		if !strings.Contains(content, "exec") {
 			t.Fatal("shim should exec the binary")
 		}
+		if !strings.Contains(content, "VCENV_AUTO_INSTALL") {
+			t.Fatal("shim should honor VCENV_AUTO_INSTALL")
+		}
+		if !strings.Contains(content, `command vc-env ensure`) {
+			t.Fatal("shim should call 'vc-env ensure' when auto-install is enabled")
+		}
+		if !strings.Contains(content, `command vc-env resolve`) {
+			t.Fatal("shim should call 'vc-env resolve' as a fallback for aliases")
+		}
 	})
 
 	t.Run("creates shims directory", func(t *testing.T) {

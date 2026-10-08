@@ -17,7 +17,7 @@ func TestCompletion_Bash(t *testing.T) {
 		"complete -F _vc_env_completions vc-env",
 		"vc-env __complete-versions installed",
 		"vc-env __complete-versions remote",
-		"install uninstall shell local global latest which exec status upgrade version completion",
+		"install uninstall shell local global latest which exec status upgrade version completion resolve ensure",
 	} {
 		if !strings.Contains(output, want) {
 			t.Errorf("bash completion missing %q\n--- script ---\n%s", want, output)

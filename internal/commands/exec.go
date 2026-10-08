@@ -6,6 +6,8 @@ import (
 	"os/exec"
 
 	"github.com/user/vc-env/internal/config"
+	"github.com/user/vc-env/internal/github"
+	"github.com/user/vc-env/internal/semver"
 )
 
 // Exec runs a specific vcluster version without changing the active version.
@@ -20,6 +22,15 @@ func Exec(version string, args []string) error {
 
 	if len(args) == 0 {
 		return fmt.Errorf("command not specified. Usage: vc-env exec <version> <command> [args...]")
+	}
+
+	// Allow aliases: resolve to a concrete installed version first.
+	if semver.IsAlias(version) {
+		concrete, err := resolveAlias(github.NewClient(), version)
+		if err != nil {
+			return err
+		}
+		version = concrete
 	}
 
 	installed, err := config.IsVersionInstalled(version)

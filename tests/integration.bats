@@ -243,3 +243,80 @@ teardown() {
 	assert_output --partial "0.22.0"
 	assert_output --partial "0.21.1"
 }
+
+@test "vc-env install accepts MAJOR.MINOR alias" {
+	vc-env init
+	# 0.21 should resolve to the highest 0.21.x stable release and install it.
+	run vc-env install 0.21
+	assert_success
+	# Verify at least one 0.21.x directory now exists.
+	ls "${VCENV_ROOT}/versions" | grep -E "^0\.21\.[0-9]+$"
+}
+
+@test "vc-env resolve prints concrete version for alias" {
+	vc-env init
+	local test_ver="0.21.1"
+	vc-env install "${test_ver}"
+
+	run vc-env resolve 0.21
+	assert_success
+	assert_output --partial "0.21.1"
+}
+
+@test "vc-env global accepts an alias and stores it verbatim" {
+	vc-env init
+	run vc-env global latest
+	assert_success
+
+	run cat "${VCENV_ROOT}/version"
+	assert_output --partial "latest"
+}
+
+@test "VCENV_AUTO_INSTALL=1 auto-installs on shim invocation" {
+	vc-env init
+	local test_ver="0.21.1"
+
+	# Set the global version without installing it.
+	echo "${test_ver}" > "${VCENV_ROOT}/version"
+
+	# Confirm the binary is not present yet.
+	[ ! -f "${VCENV_ROOT}/versions/${test_ver}/vcluster" ]
+
+	# Shim should install on demand.
+	VCENV_AUTO_INSTALL=1 run vcluster version
+	assert_success
+	assert_output --regexp "([vV]ersion|[0-9]+\.[0-9]+\.[0-9])"
+	[ -f "${VCENV_ROOT}/versions/${test_ver}/vcluster" ]
+}
+
+@test "vc-env install --from-file installs a local binary" {
+	vc-env init
+	local test_ver="0.21.1"
+
+	# First get a real vcluster binary from GitHub via a normal install.
+	vc-env install "${test_ver}"
+	local src="${BATS_TMPDIR}/vcluster-copy"
+	cp "${VCENV_ROOT}/versions/${test_ver}/vcluster" "${src}"
+
+	# Compute checksum and remove the installed version.
+	local sum
+	sum=$(sha256sum "${src}" | awk '{print $1}')
+	rm -rf "${VCENV_ROOT}/versions/${test_ver}"
+
+	# Install again, this time from the local file with checksum validation.
+	run vc-env install "${test_ver}" --from-file "${src}" --sha256 "${sum}"
+	assert_success
+	[ -x "${VCENV_ROOT}/versions/${test_ver}/vcluster" ]
+}
+
+@test "vc-env install --from-file aborts on wrong --sha256" {
+	vc-env init
+	local test_ver="0.21.1"
+	local src="${BATS_TMPDIR}/fake-vcluster"
+	echo "not a real binary" > "${src}"
+
+	run vc-env install "${test_ver}" --from-file "${src}" --sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+	assert_failure
+	assert_output --partial "checksum mismatch"
+	[ ! -f "${VCENV_ROOT}/versions/${test_ver}/vcluster" ]
+}

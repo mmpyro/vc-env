@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/user/vc-env/internal/config"
+	"github.com/user/vc-env/internal/semver"
 )
 
 // Shell manages the shell-level vcluster version.
@@ -25,13 +26,16 @@ func Shell(version string) error {
 		return nil
 	}
 
-	// Verify version is installed
-	installed, err := config.IsVersionInstalled(version)
-	if err != nil {
-		return err
-	}
-	if !installed {
-		return fmt.Errorf("version %s not installed", version)
+	// Aliases are stored verbatim and resolved by the shim on each call.
+	// Concrete versions must be installed before they can be selected.
+	if !semver.IsAlias(version) {
+		installed, err := config.IsVersionInstalled(version)
+		if err != nil {
+			return err
+		}
+		if !installed {
+			return fmt.Errorf("version %s not installed", version)
+		}
 	}
 
 	// Output export command for the shell function wrapper to eval

@@ -63,7 +63,7 @@ const bashCompletionScript = `_vc_env_completions() {
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
-    opts="help list list-remote init install uninstall shell local global latest which exec status upgrade version completion"
+    opts="help list list-remote init install uninstall shell local global latest which exec status upgrade version completion resolve ensure"
 
     if [[ ${COMP_CWORD} -eq 1 ]] ; then
         COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -71,7 +71,7 @@ const bashCompletionScript = `_vc_env_completions() {
     fi
 
     case "${prev}" in
-        install)
+        install|ensure|resolve)
             local versions
             versions=$(vc-env __complete-versions remote 2>/dev/null)
             COMPREPLY=( $(compgen -W "${versions}" -- "${cur}") )
@@ -114,6 +114,8 @@ _vc_env() {
         'upgrade:Upgrade vc-env to the latest version'
         'version:Print the version of vc-env'
         'completion:Generate shell completion script'
+        'resolve:Resolve a version alias to a concrete version'
+        'ensure:Resolve an alias and install if missing (auto-install helper)'
     )
     shells=(bash zsh fish powershell)
 
@@ -123,7 +125,7 @@ _vc_env() {
     fi
 
     case ${words[2]} in
-        install)
+        install|ensure|resolve)
             local -a versions
             versions=(${(f)"$(vc-env __complete-versions remote 2>/dev/null)"})
             compadd -- $versions
@@ -163,9 +165,11 @@ complete -c vc-env -n '__fish_use_subcommand' -a 'status'         -d 'Show curre
 complete -c vc-env -n '__fish_use_subcommand' -a 'upgrade'        -d 'Upgrade vc-env to the latest version'
 complete -c vc-env -n '__fish_use_subcommand' -a 'version'        -d 'Print the vc-env version'
 complete -c vc-env -n '__fish_use_subcommand' -a 'completion'     -d 'Generate shell completion script'
+complete -c vc-env -n '__fish_use_subcommand' -a 'resolve'        -d 'Resolve a version alias to a concrete version'
+complete -c vc-env -n '__fish_use_subcommand' -a 'ensure'         -d 'Resolve an alias and install if missing'
 
 # Version arguments
-complete -c vc-env -n '__fish_seen_subcommand_from install' \
+complete -c vc-env -n '__fish_seen_subcommand_from install ensure resolve' \
     -a '(vc-env __complete-versions remote 2>/dev/null)'
 complete -c vc-env -n '__fish_seen_subcommand_from uninstall shell local global exec' \
     -a '(vc-env __complete-versions installed 2>/dev/null)'
@@ -189,7 +193,7 @@ Register-ArgumentCompleter -Native -CommandName vc-env -ScriptBlock {
 
     $subcommands = @(
         'help','list','list-remote','init','install','uninstall','shell','local','global',
-        'latest','which','exec','status','upgrade','version','completion'
+        'latest','which','exec','status','upgrade','version','completion','resolve','ensure'
     )
     $shells = @('bash','zsh','fish','powershell')
 
@@ -211,7 +215,7 @@ Register-ArgumentCompleter -Native -CommandName vc-env -ScriptBlock {
     $sub = $tokens[0]
     $candidates = @()
     switch ($sub) {
-        'install' {
+        { @('install','ensure','resolve') -contains $_ } {
             $candidates = (vc-env __complete-versions remote 2>$null) -split "{BT}r?{BT}n" | Where-Object { $_ }
         }
         { @('uninstall','shell','local','global','exec') -contains $_ } {
