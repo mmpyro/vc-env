@@ -179,18 +179,69 @@ teardown() {
 	assert_output --regexp "([vV]ersion|[0-9]+\.[0-9]+\.[0-9])"
 }
 
-@test "vc-env autocompletion outputs bash script" {
+@test "vc-env completion bash outputs native bash script" {
+	run vc-env completion bash
+	assert_success
+	assert_output --partial "_vc_env_completions()"
+	assert_output --partial "complete -F _vc_env_completions vc-env"
+	assert_output --partial "vc-env __complete-versions installed"
+	assert_output --partial "vc-env __complete-versions remote"
+}
+
+@test "vc-env completion zsh outputs native zsh compdef script" {
+	run vc-env completion zsh
+	assert_success
+	assert_output --partial "#compdef vc-env"
+	assert_output --partial "_vc_env()"
+	assert_output --partial "compdef _vc_env vc-env"
+}
+
+@test "vc-env completion fish outputs native fish complete script" {
+	run vc-env completion fish
+	assert_success
+	assert_output --partial "complete -c vc-env"
+	assert_output --partial "__fish_use_subcommand"
+	assert_output --partial "__fish_seen_subcommand_from install"
+}
+
+@test "vc-env completion powershell outputs ArgumentCompleter script" {
+	run vc-env completion powershell
+	assert_success
+	assert_output --partial "Register-ArgumentCompleter"
+	assert_output --partial "-CommandName vc-env"
+}
+
+@test "vc-env completion rejects unknown shells" {
+	run vc-env completion tcsh
+	assert_failure
+	assert_output --partial "unsupported shell"
+}
+
+@test "vc-env completion --help shows help text" {
+	run vc-env completion --help
+	assert_success
+	assert_output --partial "vc-env completion <shell>"
+	assert_output --partial "bash"
+	assert_output --partial "zsh"
+	assert_output --partial "fish"
+	assert_output --partial "powershell"
+}
+
+@test "vc-env autocompletion still works as deprecated alias" {
 	run vc-env autocompletion
 	assert_success
 	assert_output --partial "_vc_env_completions()"
 	assert_output --partial "complete -F _vc_env_completions vc-env"
 }
 
-@test "vc-env autocompletion --help shows help text" {
-	run vc-env autocompletion --help
+@test "vc-env __complete-versions installed lists installed versions" {
+	vc-env init
+	mkdir -p "${VCENV_ROOT}/versions/0.22.0"
+	mkdir -p "${VCENV_ROOT}/versions/0.21.1"
+	run vc-env __complete-versions installed
 	assert_success
-	assert_output --partial "autocompletion"
-	assert_output --partial "source <(vc-env autocompletion)"
+	assert_output --partial "0.22.0"
+	assert_output --partial "0.21.1"
 }
 
 @test "vc-env install accepts MAJOR.MINOR alias" {

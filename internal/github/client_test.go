@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestListReleases(t *testing.T) {
@@ -137,7 +140,91 @@ func TestGetLatestRelease(t *testing.T) {
 }
 
 func TestGetLatestReleaseRateLimit(t *testing.T) {
+	t.Run("rate limited without token mentions env vars and reset", func(t *testing.T) {
+		reset := time.Now().Add(2 * time.Minute).Unix()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-RateLimit-Remaining", "0")
+			w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(reset, 10))
+			w.WriteHeader(http.StatusForbidden)
+		}))
+		defer server.Close()
+
+		client := &Client{
+			BaseURL:    server.URL,
+			HTTPClient: server.Client(),
+		}
+
+		_, err := client.GetLatestRelease()
+		if err == nil {
+			t.Fatal("expected error on rate limit")
+		}
+		msg := err.Error()
+		if !strings.Contains(msg, "rate limit exceeded") {
+			t.Fatalf("expected rate limit error, got: %v", err)
+		}
+		if !strings.Contains(msg, "resets in") {
+			t.Fatalf("expected 'resets in' hint, got: %v", err)
+		}
+		if !strings.Contains(msg, "VCENV_GITHUB_TOKEN") || !strings.Contains(msg, "GITHUB_TOKEN") {
+			t.Fatalf("expected token env hint, got: %v", err)
+		}
+	})
+
+	t.Run("rate limited with token mentions already set", func(t *testing.T) {
+		reset := time.Now().Add(90 * time.Second).Unix()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-RateLimit-Remaining", "0")
+			w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(reset, 10))
+			w.WriteHeader(http.StatusForbidden)
+		}))
+		defer server.Close()
+
+		client := &Client{
+			BaseURL:    server.URL,
+			Token:      "abc123",
+			HTTPClient: server.Client(),
+		}
+
+		_, err := client.GetLatestRelease()
+		if err == nil {
+			t.Fatal("expected error on rate limit")
+		}
+		if !strings.Contains(err.Error(), "already set") {
+			t.Fatalf("expected 'already set' hint when token configured, got: %v", err)
+		}
+	})
+
+	t.Run("non-rate-limit 403 returns generic status error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// No X-RateLimit headers set.
+			w.WriteHeader(http.StatusForbidden)
+		}))
+		defer server.Close()
+
+		client := &Client{
+			BaseURL:    server.URL,
+			HTTPClient: server.Client(),
+		}
+
+		_, err := client.GetLatestRelease()
+		if err == nil {
+			t.Fatal("expected error on 403")
+		}
+		msg := err.Error()
+		if strings.Contains(msg, "rate limit") {
+			t.Fatalf("expected generic status error without 'rate limit', got: %v", err)
+		}
+		if !strings.Contains(msg, "status 403") {
+			t.Fatalf("expected 'status 403' in message, got: %v", err)
+		}
+	})
+}
+
+func TestForbiddenNotRateLimit(t *testing.T) {
+	// 403 with remaining > 0 must NOT be labelled as rate limiting.
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-RateLimit-Remaining", "5")
+		w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10))
 		w.WriteHeader(http.StatusForbidden)
 	}))
 	defer server.Close()
@@ -149,7 +236,13 @@ func TestGetLatestReleaseRateLimit(t *testing.T) {
 
 	_, err := client.GetLatestRelease()
 	if err == nil {
-		t.Fatal("expected error on rate limit")
+		t.Fatal("expected error on 403")
+	}
+	if strings.Contains(err.Error(), "rate limit") {
+		t.Fatalf("403 with remaining quota should not be labelled as rate limit, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "status 403") {
+		t.Fatalf("expected 'status 403' in message, got: %v", err)
 	}
 }
 
@@ -221,6 +314,182 @@ func TestParseNextPageURL(t *testing.T) {
 			result := parseNextPageURL(tt.header)
 			if result != tt.expected {
 				t.Fatalf("expected %q, got %q", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestNewClientReadsEnv(t *testing.T) {
+	t.Run("defaults when no env vars set", func(t *testing.T) {
+		t.Setenv("VCENV_GITHUB_TOKEN", "")
+		t.Setenv("GITHUB_TOKEN", "")
+		t.Setenv("VCENV_GITHUB_API_URL", "")
+		t.Setenv("VCENV_DOWNLOAD_MIRROR", "")
+
+		c := NewClient()
+		if c.BaseURL != "https://api.github.com" {
+			t.Fatalf("expected default BaseURL, got %q", c.BaseURL)
+		}
+		if c.DownloadBaseURL != "https://github.com" {
+			t.Fatalf("expected default DownloadBaseURL, got %q", c.DownloadBaseURL)
+		}
+		if c.Token != "" {
+			t.Fatalf("expected empty Token, got %q", c.Token)
+		}
+	})
+
+	t.Run("env vars override defaults", func(t *testing.T) {
+		t.Setenv("VCENV_GITHUB_TOKEN", "")
+		t.Setenv("GITHUB_TOKEN", "gh-token")
+		t.Setenv("VCENV_GITHUB_API_URL", "https://ghe.example.com/api/v3")
+		t.Setenv("VCENV_DOWNLOAD_MIRROR", "https://mirror.example.com")
+
+		c := NewClient()
+		if c.BaseURL != "https://ghe.example.com/api/v3" {
+			t.Fatalf("expected overridden BaseURL, got %q", c.BaseURL)
+		}
+		if c.DownloadBaseURL != "https://mirror.example.com" {
+			t.Fatalf("expected overridden DownloadBaseURL, got %q", c.DownloadBaseURL)
+		}
+		if c.Token != "gh-token" {
+			t.Fatalf("expected GITHUB_TOKEN fallback, got %q", c.Token)
+		}
+	})
+
+	t.Run("VCENV_GITHUB_TOKEN wins over GITHUB_TOKEN", func(t *testing.T) {
+		t.Setenv("VCENV_GITHUB_TOKEN", "vcenv-token")
+		t.Setenv("GITHUB_TOKEN", "generic-token")
+
+		c := NewClient()
+		if c.Token != "vcenv-token" {
+			t.Fatalf("expected VCENV_GITHUB_TOKEN to win, got %q", c.Token)
+		}
+	})
+}
+
+func TestAuthorizationHeaderSent(t *testing.T) {
+	releases := []Release{
+		{TagName: "v0.32.0", Prerelease: false, Draft: false},
+	}
+
+	t.Run("Authorization header present when token set", func(t *testing.T) {
+		var seenAuths []string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			seenAuths = append(seenAuths, r.Header.Get("Authorization"))
+			w.Header().Set("Content-Type", "application/json")
+			switch {
+			case strings.HasSuffix(r.URL.Path, "/releases/latest"):
+				_ = json.NewEncoder(w).Encode(releases[0])
+			case strings.Contains(r.URL.Path, "/releases"):
+				_ = json.NewEncoder(w).Encode(releases)
+			case strings.HasPrefix(r.URL.Path, "/download"):
+				_, _ = w.Write([]byte("binary"))
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		defer server.Close()
+
+		client := &Client{
+			BaseURL:    server.URL,
+			Token:      "xyz",
+			HTTPClient: server.Client(),
+		}
+
+		if _, err := client.GetLatestRelease(); err != nil {
+			t.Fatalf("GetLatestRelease: %v", err)
+		}
+		if _, err := client.ListReleases(true); err != nil {
+			t.Fatalf("ListReleases: %v", err)
+		}
+		if _, err := client.DownloadBinary(server.URL + "/download/file"); err != nil {
+			t.Fatalf("DownloadBinary: %v", err)
+		}
+
+		if len(seenAuths) < 3 {
+			t.Fatalf("expected at least 3 requests, got %d", len(seenAuths))
+		}
+		for i, got := range seenAuths {
+			if got != "Bearer xyz" {
+				t.Fatalf("request %d: expected Authorization 'Bearer xyz', got %q", i, got)
+			}
+		}
+	})
+
+	t.Run("Authorization header absent when token empty", func(t *testing.T) {
+		var seenAuths []string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			seenAuths = append(seenAuths, r.Header.Get("Authorization"))
+			w.Header().Set("Content-Type", "application/json")
+			switch {
+			case strings.HasSuffix(r.URL.Path, "/releases/latest"):
+				_ = json.NewEncoder(w).Encode(releases[0])
+			case strings.Contains(r.URL.Path, "/releases"):
+				_ = json.NewEncoder(w).Encode(releases)
+			case strings.HasPrefix(r.URL.Path, "/download"):
+				_, _ = w.Write([]byte("binary"))
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		defer server.Close()
+
+		client := &Client{
+			BaseURL:    server.URL,
+			HTTPClient: server.Client(),
+		}
+
+		if _, err := client.GetLatestRelease(); err != nil {
+			t.Fatalf("GetLatestRelease: %v", err)
+		}
+		if _, err := client.ListReleases(true); err != nil {
+			t.Fatalf("ListReleases: %v", err)
+		}
+		if _, err := client.DownloadBinary(server.URL + "/download/file"); err != nil {
+			t.Fatalf("DownloadBinary: %v", err)
+		}
+
+		for i, got := range seenAuths {
+			if got != "" {
+				t.Fatalf("request %d: expected no Authorization header, got %q", i, got)
+			}
+		}
+	})
+}
+
+func TestDownloadURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		base     string
+		path     string
+		expected string
+	}{
+		{
+			name:     "no trailing slash",
+			base:     "https://github.com",
+			path:     "mmpyro/vc-env/releases/download/v0.2.0/vc-env-linux-amd64",
+			expected: "https://github.com/mmpyro/vc-env/releases/download/v0.2.0/vc-env-linux-amd64",
+		},
+		{
+			name:     "mirror with trailing slash is tolerated",
+			base:     "https://mirror.example.com/",
+			path:     "mmpyro/vc-env/releases/download/v0.2.0/checksums.txt",
+			expected: "https://mirror.example.com/mmpyro/vc-env/releases/download/v0.2.0/checksums.txt",
+		},
+		{
+			name:     "mirror with multiple trailing slashes is tolerated",
+			base:     "https://mirror.example.com///",
+			path:     "foo/bar",
+			expected: "https://mirror.example.com/foo/bar",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Client{DownloadBaseURL: tt.base}
+			got := c.DownloadURL(tt.path)
+			if got != tt.expected {
+				t.Fatalf("expected %q, got %q", tt.expected, got)
 			}
 		})
 	}

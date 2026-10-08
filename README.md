@@ -59,6 +59,16 @@ This produces binaries for:
 - `darwin/amd64`
 - `darwin/arm64`
 
+### CI tip
+
+If you use `vc-env` from CI (for example GitHub Actions), export `GITHUB_TOKEN`
+(or the vc-env-specific `VCENV_GITHUB_TOKEN`) before invoking `vc-env install`,
+`vc-env latest`, or `vc-env list-remote`. Without a token, GitHub applies an
+anonymous rate limit of 60 requests per hour per IP, which is easy to hit on
+shared CI runners; an authenticated request raises the quota to 5000/h. See
+[docs/cli-reference.md](docs/cli-reference.md#environment-variables) for the
+full list of supported environment variables.
+
 ## Quick Start
 
 ### 1. Set up VCENV_ROOT
@@ -151,7 +161,7 @@ Full reference: [docs/cli-reference.md](docs/cli-reference.md)
 | `vc-env which` | Print path to active vcluster binary |
 | `vc-env version` | Print vc-env version |
 | `vc-env upgrade` | Download the latest stable release of vc-env from GitHub and replace the current binary in-place |
-| `ev-env autocompletion` | Generate a Bash autocompletion script for a smoother CLI experience |
+| `vc-env completion <shell>` | Generate a shell completion script (`bash`, `zsh`, `fish`, or `powershell`) for a smoother CLI experience |
 
 ## Version Priority
 
@@ -165,6 +175,8 @@ If no version is configured at any level, the command fails with an informative 
 
 ## Shell Setup
 
+`vc-env` ships native completion scripts for Bash, Zsh, Fish, and PowerShell. Choose the block that matches your shell.
+
 ### Bash
 
 Add the following to your `~/.bashrc`:
@@ -173,7 +185,7 @@ Add the following to your `~/.bashrc`:
 # vc-env setup
 export VCENV_ROOT="$HOME/.vcenv"
 eval "$(vc-env init)"
-source <(vc-env autocompletion)
+source <(vc-env completion bash)
 ```
 
 ### Zsh
@@ -184,8 +196,41 @@ Add the following to your `~/.zshrc`:
 # vc-env setup
 export VCENV_ROOT="$HOME/.vcenv"
 eval "$(vc-env init)"
-source <(vc-env autocompletion)
+
+# Zsh completion requires the completion system to be initialised once.
+autoload -Uz compinit && compinit
+source <(vc-env completion zsh)
 ```
+
+### Fish
+
+Add the following to your `~/.config/fish/config.fish`:
+
+```fish
+# vc-env setup
+set -gx VCENV_ROOT "$HOME/.vcenv"
+vc-env init | source
+vc-env completion fish | source
+```
+
+Or install the completion persistently so it loads automatically:
+
+```fish
+vc-env completion fish > ~/.config/fish/completions/vc-env.fish
+```
+
+### PowerShell
+
+Add the following to your `$PROFILE`:
+
+```powershell
+# vc-env setup
+$env:VCENV_ROOT = "$HOME\.vcenv"
+vc-env init | Out-String | Invoke-Expression
+vc-env completion powershell | Out-String | Invoke-Expression
+```
+
+> `vc-env autocompletion` is still accepted as a deprecated alias for `vc-env completion bash` so existing shell rc files keep working.
 
 ## Caching
 

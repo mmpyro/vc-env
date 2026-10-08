@@ -135,14 +135,33 @@ func main() {
 	case "upgrade":
 		err = commands.Upgrade()
 
-	case "autocompletion":
+	case "completion":
+		shell := ""
 		for _, arg := range args[1:] {
 			if arg == "-h" || arg == "--help" {
-				commands.AutocompletionHelp()
+				commands.CompletionHelp()
+				os.Exit(0)
+			} else if shell == "" && !strings.HasPrefix(arg, "-") {
+				shell = arg
+			}
+		}
+		err = commands.Completion(shell)
+
+	case "autocompletion":
+		// Back-compat: previously printed bash. Keep behavior, warn to stderr.
+		for _, arg := range args[1:] {
+			if arg == "-h" || arg == "--help" {
+				commands.CompletionHelp()
 				os.Exit(0)
 			}
 		}
-		err = commands.Autocompletion()
+		fmt.Fprintln(os.Stderr, "vc-env: 'autocompletion' is deprecated; use 'vc-env completion bash'")
+		err = commands.Completion("bash")
+
+	case "__complete-versions":
+		// Internal: used by generated completion scripts. Lists installed or
+		// cached remote versions, one per line, without touching the network.
+		err = commands.CompleteVersions(args[1:])
 
 	case "status":
 		err = commands.Status()

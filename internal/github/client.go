@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,23 +28,86 @@ type Release struct {
 type Client struct {
 	BaseURL         string
 	DownloadBaseURL string
+	Token           string
 	HTTPClient      *http.Client
 }
 
+// firstNonEmpty returns the first non-empty string from values, or "" if all are empty.
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
 // NewClient creates a new GitHub API client with default settings.
+//
+// Environment variables honoured:
+//   - VCENV_GITHUB_TOKEN: preferred token for GitHub API auth.
+//   - GITHUB_TOKEN: fallback token, used if VCENV_GITHUB_TOKEN is unset.
+//   - VCENV_GITHUB_API_URL: overrides the GitHub API base URL (default
+//     https://api.github.com). Useful for GitHub Enterprise.
+//   - VCENV_DOWNLOAD_MIRROR: overrides the download base URL (default
+//     https://github.com). Useful for air-gapped mirrors.
 func NewClient() *Client {
 	return &Client{
-		BaseURL:         "https://api.github.com",
-		DownloadBaseURL: "https://github.com",
+		BaseURL:         firstNonEmpty(os.Getenv("VCENV_GITHUB_API_URL"), "https://api.github.com"),
+		DownloadBaseURL: firstNonEmpty(os.Getenv("VCENV_DOWNLOAD_MIRROR"), "https://github.com"),
+		Token:           firstNonEmpty(os.Getenv("VCENV_GITHUB_TOKEN"), os.Getenv("GITHUB_TOKEN")),
 		HTTPClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
 	}
 }
 
-// DownloadURL returns the full download URL given a path.
+// DownloadURL returns the full download URL given a path. Any trailing "/"
+// on DownloadBaseURL (for example from a user-provided VCENV_DOWNLOAD_MIRROR)
+// is stripped so callers never produce URLs with a double slash.
 func (c *Client) DownloadURL(path string) string {
-	return fmt.Sprintf("%s/%s", c.DownloadBaseURL, path)
+	return fmt.Sprintf("%s/%s", strings.TrimRight(c.DownloadBaseURL, "/"), path)
+}
+
+// newRequest builds an HTTP request with the standard headers (Accept,
+// User-Agent) and attaches an Authorization bearer token when c.Token is set.
+func (c *Client) newRequest(method, url string) (*http.Request, error) {
+	req, err := http.NewRequest(method, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	req.Header.Set("User-Agent", "vc-env")
+	if c.Token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.Token)
+	}
+	return req, nil
+}
+
+// checkResponse inspects an HTTP response and returns a descriptive error for
+// non-2xx responses. Rate-limit responses (403/429 with X-RateLimit-Remaining:
+// 0) produce an actionable message mentioning the reset time and the
+// VCENV_GITHUB_TOKEN / GITHUB_TOKEN hint. Non-rate-limit 403s are reported as a
+// generic status error so we do not mislead users.
+func checkResponse(resp *http.Response, hasToken bool) error {
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return nil
+	}
+	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests {
+		if resp.Header.Get("X-RateLimit-Remaining") == "0" {
+			reset, _ := strconv.ParseInt(resp.Header.Get("X-RateLimit-Reset"), 10, 64)
+			wait := time.Until(time.Unix(reset, 0)).Round(time.Second)
+			hint := "set VCENV_GITHUB_TOKEN or GITHUB_TOKEN to raise the limit to 5000/h"
+			if hasToken {
+				hint = "token is already set; wait or use a token with higher quota"
+			}
+			if wait > 0 {
+				return fmt.Errorf("GitHub API rate limit exceeded (resets in %s). %s", wait, hint)
+			}
+			return fmt.Errorf("GitHub API rate limit exceeded. %s", hint)
+		}
+	}
+	return fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
 }
 
 // ListReleases fetches all vcluster releases from GitHub.
@@ -144,12 +209,10 @@ func (c *Client) ListReleasesSince(sinceVersion string, includePrerelease bool) 
 func (c *Client) GetLatestRelease() (string, error) {
 	url := fmt.Sprintf("%s/repos/loft-sh/vcluster/releases/latest", c.BaseURL)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := c.newRequest("GET", url)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	req.Header.Set("User-Agent", "vc-env")
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
@@ -157,11 +220,8 @@ func (c *Client) GetLatestRelease() (string, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusForbidden {
-		return "", fmt.Errorf("GitHub API rate limit exceeded. Please try again later")
-	}
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+	if err := checkResponse(resp, c.Token != ""); err != nil {
+		return "", err
 	}
 
 	var release Release
@@ -177,12 +237,10 @@ func (c *Client) GetLatestRelease() (string, error) {
 func (c *Client) GetLatestReleaseFor(ownerRepo string) (string, error) {
 	url := fmt.Sprintf("%s/repos/%s/releases/latest", c.BaseURL, ownerRepo)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := c.newRequest("GET", url)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	req.Header.Set("User-Agent", "vc-env")
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
@@ -190,11 +248,8 @@ func (c *Client) GetLatestReleaseFor(ownerRepo string) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusForbidden {
-		return "", fmt.Errorf("GitHub API rate limit exceeded. Please try again later")
-	}
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+	if err := checkResponse(resp, c.Token != ""); err != nil {
+		return "", err
 	}
 
 	var release Release
@@ -207,12 +262,10 @@ func (c *Client) GetLatestReleaseFor(ownerRepo string) (string, error) {
 
 // fetchReleasesPage fetches a single page of releases and returns the next page URL.
 func (c *Client) fetchReleasesPage(url string) ([]Release, string, error) {
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := c.newRequest("GET", url)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to create request: %w", err)
 	}
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	req.Header.Set("User-Agent", "vc-env")
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
@@ -220,11 +273,8 @@ func (c *Client) fetchReleasesPage(url string) ([]Release, string, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusForbidden {
-		return nil, "", fmt.Errorf("GitHub API rate limit exceeded. Please try again later")
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, "", fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+	if err := checkResponse(resp, c.Token != ""); err != nil {
+		return nil, "", err
 	}
 
 	body, err := io.ReadAll(resp.Body)
@@ -259,11 +309,10 @@ func parseNextPageURL(linkHeader string) string {
 // DownloadBinary downloads a binary from the given URL and returns its contents.
 // It uses a longer timeout than the default API client to accommodate large binaries.
 func (c *Client) DownloadBinary(url string) ([]byte, error) {
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := c.newRequest("GET", url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create download request: %w", err)
 	}
-	req.Header.Set("User-Agent", "vc-env")
 
 	// Use a dedicated client with a longer timeout for binary downloads.
 	downloadClient := &http.Client{Timeout: 10 * time.Minute}
@@ -290,11 +339,10 @@ func (c *Client) DownloadBinary(url string) ([]byte, error) {
 
 // DownloadWithProgress downloads a file from the given URL and reports progress via a callback.
 func (c *Client) DownloadWithProgress(url string, onProgress func(total, current int64)) ([]byte, error) {
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := c.newRequest("GET", url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create download request: %w", err)
 	}
-	req.Header.Set("User-Agent", "vc-env")
 
 	downloadClient := &http.Client{Timeout: 10 * time.Minute}
 	resp, err := downloadClient.Do(req)

@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -16,7 +18,6 @@ const vcenvRepo = "mmpyro/vc-env"
 // Upgrade downloads the latest stable vc-env release from GitHub and replaces
 // the current binary in-place using an atomic rename.
 func Upgrade() error {
-	// 1. Resolve the running binary path.
 	execPath, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("failed to determine executable path: %w", err)
@@ -26,14 +27,12 @@ func Upgrade() error {
 		return fmt.Errorf("failed to resolve symlinks for %s: %w", execPath, err)
 	}
 
-	// 2. Fetch latest vc-env release from GitHub.
 	client := github.NewClient()
 	latestVersion, err := client.GetLatestReleaseFor(vcenvRepo)
 	if err != nil {
 		return fmt.Errorf("failed to fetch latest vc-env release: %w", err)
 	}
 
-	// 3. Compare versions.
 	if Version != "dev" {
 		current := semver.Parse(Version)
 		remote := semver.Parse(latestVersion)
@@ -51,23 +50,44 @@ func Upgrade() error {
 		fmt.Println("Running a dev build — proceeding with upgrade to latest release")
 	}
 
-	// 4. Detect current OS/architecture.
 	info, err := platform.Detect()
 	if err != nil {
 		return fmt.Errorf("failed to detect platform: %w", err)
 	}
 
-	// 5. Build the asset download URL.
-	url := platform.SelfDownloadURL(latestVersion, info, vcenvRepo)
+	return upgradeWithClient(client, binaryPath, info, latestVersion)
+}
+
+// upgradeWithClient performs the download, checksum verification and atomic
+// replace steps of the upgrade flow. It is split from Upgrade so tests can
+// drive the download through an httptest server.
+func upgradeWithClient(client *github.Client, binaryPath string, info platform.Info, latestVersion string) error {
+	url := client.DownloadURL(platform.SelfDownloadPath(latestVersion, info, vcenvRepo))
 	fmt.Printf("Downloading vc-env %s for %s/%s...\n", latestVersion, info.OS, info.Arch)
 
-	// 6. Download the new binary.
 	data, err := client.DownloadBinary(url)
 	if err != nil {
 		return fmt.Errorf("failed to download vc-env %s: %w", latestVersion, err)
 	}
 
-	// 7. Atomic replace: write temp file in same directory, then rename.
+	checksumURL := client.DownloadURL(platform.SelfChecksumPath(latestVersion, vcenvRepo))
+	checksumData, err := client.DownloadBinary(checksumURL)
+	if err != nil {
+		fmt.Printf("Warning: could not download checksums for vc-env %s: %v\n", latestVersion, err)
+	} else {
+		expectedChecksum, err := findChecksum(string(checksumData), platform.SelfBinaryName(info))
+		if err != nil {
+			fmt.Printf("Warning: could not find checksum for %s in checksums.txt\n", platform.SelfBinaryName(info))
+		} else {
+			actualChecksum := sha256.Sum256(data)
+			actualChecksumStr := hex.EncodeToString(actualChecksum[:])
+			if actualChecksumStr != expectedChecksum {
+				return fmt.Errorf("checksum mismatch: expected %s, got %s", expectedChecksum, actualChecksumStr)
+			}
+			fmt.Println("Checksum verified successfully")
+		}
+	}
+
 	if err := atomicReplace(binaryPath, data); err != nil {
 		return err
 	}
@@ -91,7 +111,6 @@ func atomicReplace(targetPath string, data []byte) error {
 	}
 	tmpPath := tmpFile.Name()
 
-	// Clean up the temp file on any error path.
 	defer func() {
 		if err != nil {
 			os.Remove(tmpPath)
@@ -110,9 +129,7 @@ func atomicReplace(targetPath string, data []byte) error {
 		return fmt.Errorf("failed to set permissions on temporary file: %w", err)
 	}
 
-	// Attempt atomic rename first.
 	if err = os.Rename(tmpPath, targetPath); err != nil {
-		// Fall back to copy + remove (e.g. cross-device).
 		if fallbackErr := copyFile(tmpPath, targetPath); fallbackErr != nil {
 			return fmt.Errorf("failed to replace binary (rename: %w, copy fallback: %v)", err, fallbackErr)
 		}

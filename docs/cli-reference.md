@@ -40,6 +40,24 @@ Internally the shim calls `vc-env ensure <version>`, which also resolves
 aliases (`latest`, `0.21`, `~0.21.1`, …) to a concrete version before
 installing.
 
+### `VCENV_GITHUB_TOKEN`
+
+Optional. GitHub personal access token used to authenticate requests to the GitHub API (and asset downloads from private mirrors / GHES). When set it is sent as `Authorization: Bearer <token>` on every GitHub request issued by `vc-env`, raising the anonymous rate limit (60/h) to the authenticated limit (5000/h).
+
+Takes precedence over `GITHUB_TOKEN` so that a shell-wide `GITHUB_TOKEN` cannot silently change `vc-env` behaviour.
+
+### `GITHUB_TOKEN`
+
+Optional. Fallback GitHub token used only when `VCENV_GITHUB_TOKEN` is unset. Convenient in CI environments where `GITHUB_TOKEN` is already injected by the runner (for example GitHub Actions).
+
+### `VCENV_GITHUB_API_URL`
+
+Optional. Overrides the GitHub API base URL (default `https://api.github.com`). Set this to point `vc-env` at a GitHub Enterprise Server instance, for example `https://ghe.example.com/api/v3`.
+
+### `VCENV_DOWNLOAD_MIRROR`
+
+Optional. Overrides the asset download base URL (default `https://github.com`). Set this to pull `vcluster` and `vc-env` release assets from an internal mirror (for air-gapped environments). `vc-env install`, `vc-env latest`, and `vc-env upgrade` all honour this value.
+
 ## Version aliases
 
 Several commands (`install`, `global`, `local`, `shell`, `resolve`, `ensure`)
@@ -566,35 +584,82 @@ vc-env status
 
 ---
 
-### `autocompletion`
+### `completion`
 
-Purpose: Generate bash autocompletion script for `vc-env`.
+Purpose: Generate a native shell completion script for `vc-env`.
 
-The script provides completion for subcommands and suggests installed versions for commands that accept a version argument (`install`, `uninstall`, `shell`, `local`, `global`, `exec`).
+The script completes subcommands and dynamically suggests versions:
+
+- Installed versions for `uninstall`, `shell`, `local`, `global`, and `exec`.
+- Cached remote versions for `install` (never performs a network request; falls back to the compiled-in baseline when the cache is empty).
+- Shell names (`bash`, `zsh`, `fish`, `powershell`) for `completion`.
 
 Syntax:
 
 ```text
-vc-env autocompletion
+vc-env completion <bash|zsh|fish|powershell>
 ```
 
 Options/flags:
 - `-h`, `--help`: show command help and exit
 
-Environment variables: none.
+Environment variables:
+- `VCENV_ROOT` (read at completion time by the generated scripts, via `vc-env __complete-versions`).
 
 Exit codes:
 - `0` on success.
+- `1` if the shell argument is missing or unsupported.
 
-Example:
+Install (Bash):
 
 ```sh
-# Enable autocompletion for the current session
-source <(vc-env autocompletion)
+# Current session
+source <(vc-env completion bash)
 
-# Enable autocompletion permanently
-echo 'source <(vc-env autocompletion)' >> ~/.bashrc
+# Permanently
+echo 'source <(vc-env completion bash)' >> ~/.bashrc
 ```
+
+Install (Zsh):
+
+```sh
+# Ensure the compsys framework is loaded once in ~/.zshrc:
+autoload -Uz compinit && compinit
+
+# Current session
+source <(vc-env completion zsh)
+
+# Permanently
+echo 'source <(vc-env completion zsh)' >> ~/.zshrc
+```
+
+Install (Fish):
+
+```fish
+# Current session
+vc-env completion fish | source
+
+# Permanently
+vc-env completion fish > ~/.config/fish/completions/vc-env.fish
+```
+
+Install (PowerShell):
+
+```powershell
+# Current session
+vc-env completion powershell | Out-String | Invoke-Expression
+
+# Permanently (append to your $PROFILE)
+Add-Content -Path $PROFILE -Value 'vc-env completion powershell | Out-String | Invoke-Expression'
+```
+
+Internal helper:
+
+The generated scripts call `vc-env __complete-versions {installed|remote}` to list candidate versions. This command is not part of the public interface and may change at any time, but it is safe to invoke manually for debugging.
+
+Back-compat:
+
+`vc-env autocompletion` remains available as a deprecated alias for `vc-env completion bash`; it prints a deprecation notice to stderr. Existing `~/.bashrc` snippets continue to work unchanged.
 
 ---
 

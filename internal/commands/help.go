@@ -25,7 +25,7 @@ Commands:
   ensure          Resolve an alias and install the concrete version if missing
   status          Show current vc-env environment status
   upgrade         Upgrade vc-env to the latest version
-  autocompletion  Generate bash autocompletion script
+  completion      Generate a shell completion script (bash|zsh|fish|powershell)
   version         Print the version of vc-env
 
 Version aliases (accepted by install/global/local/shell/resolve/ensure):
