@@ -6,10 +6,18 @@ Manage multiple versions of the vcluster CLI and switch between them seamlessly.
 
 ## Documentation
 
+Hosted site: **<https://mmpyro.github.io/vc-env/>** (built from `docs/` with
+MkDocs Material, deployed by [`.github/workflows/docs.yml`](.github/workflows/docs.yml)).
+
+Sources:
+
 - [Docs index](docs/index.md)
 - [Installation and configuration](docs/installation-and-configuration.md)
 - [CLI reference](docs/cli-reference.md)
 - [Caching strategy](docs/caching.md)
+
+To preview locally: `make docs-serve` (creates `.venv-docs/` on first run and
+opens the site at http://127.0.0.1:8000/vc-env/).
 
 ## Downloads (latest release)
 
