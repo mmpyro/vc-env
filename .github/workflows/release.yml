@@ -57,6 +57,10 @@ jobs:
         run: |
           docker run --rm --platform linux/arm64 -v $(pwd)/build/vc-env-linux-arm64:/src/vc-env vc-env-test:arm64
 
+      - name: Generate checksums.txt
+        working-directory: build
+        run: sha256sum vc-env-* > checksums.txt
+
       - name: Generate release notes
         id: release_notes
         run: |
@@ -91,6 +95,7 @@ jobs:
             build/vc-env-darwin-amd64
             build/vc-env-linux-arm64
             build/vc-env-linux-amd64
+            build/checksums.txt
 
       - name: Upload binaries as artifacts
         uses: actions/upload-artifact@v4
@@ -101,3 +106,4 @@ jobs:
             build/vc-env-darwin-amd64
             build/vc-env-linux-arm64
             build/vc-env-linux-amd64
+            build/checksums.txt
