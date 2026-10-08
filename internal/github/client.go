@@ -62,9 +62,11 @@ func NewClient() *Client {
 	}
 }
 
-// DownloadURL returns the full download URL given a path.
+// DownloadURL returns the full download URL given a path. Any trailing "/"
+// on DownloadBaseURL (for example from a user-provided VCENV_DOWNLOAD_MIRROR)
+// is stripped so callers never produce URLs with a double slash.
 func (c *Client) DownloadURL(path string) string {
-	return fmt.Sprintf("%s/%s", c.DownloadBaseURL, path)
+	return fmt.Sprintf("%s/%s", strings.TrimRight(c.DownloadBaseURL, "/"), path)
 }
 
 // newRequest builds an HTTP request with the standard headers (Accept,
