@@ -1,10 +1,17 @@
 package commands
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/user/vc-env/internal/github"
 	"github.com/user/vc-env/internal/platform"
 	"github.com/user/vc-env/internal/semver"
 )
@@ -149,4 +156,156 @@ func TestSelfDownloadURLMirror(t *testing.T) {
 	if url != expected {
 		t.Fatalf("expected %s, got %s", expected, url)
 	}
+}
+
+// newUpgradeTestServer builds an httptest server that serves the vc-env
+// binary and checksums.txt for the current platform. The handler lets the
+// test override the checksum file content, or skip it entirely by returning
+// 404.
+func newUpgradeTestServer(t *testing.T, info platform.Info, version string, binaryData []byte, checksumBody string, serveChecksums bool) *httptest.Server {
+	t.Helper()
+
+	binaryPath := "/" + platform.SelfDownloadPath(version, info, vcenvRepo)
+	checksumPath := "/" + platform.SelfChecksumPath(version, vcenvRepo)
+
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case binaryPath:
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(binaryData)))
+			_, _ = w.Write(binaryData)
+		case checksumPath:
+			if !serveChecksums {
+				http.NotFound(w, r)
+				return
+			}
+			_, _ = fmt.Fprint(w, checksumBody)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+}
+
+func TestUpgradeWithClient(t *testing.T) {
+	info, err := platform.Detect()
+	if err != nil {
+		t.Fatalf("platform.Detect failed: %v", err)
+	}
+
+	version := "0.9.9"
+	binaryData := []byte("fake vc-env binary content")
+	sum := sha256.Sum256(binaryData)
+	validChecksum := hex.EncodeToString(sum[:])
+	validChecksumBody := fmt.Sprintf("%s  %s\n", validChecksum, platform.SelfBinaryName(info))
+
+	Version = "0.0.1"
+	defer func() { Version = "dev" }()
+
+	t.Run("writes binary when checksum matches", func(t *testing.T) {
+		server := newUpgradeTestServer(t, info, version, binaryData, validChecksumBody, true)
+		defer server.Close()
+
+		client := &github.Client{
+			BaseURL:         server.URL,
+			DownloadBaseURL: server.URL,
+			HTTPClient:      server.Client(),
+		}
+
+		targetPath := filepath.Join(t.TempDir(), "vc-env")
+		if err := os.WriteFile(targetPath, []byte("old"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		output := captureStdout(t, func() {
+			if err := upgradeWithClient(client, targetPath, info, version); err != nil {
+				t.Fatalf("upgradeWithClient failed: %v", err)
+			}
+		})
+
+		if !strings.Contains(output, "Checksum verified successfully") {
+			t.Errorf("expected checksum verification message, got %q", output)
+		}
+
+		got, err := os.ReadFile(targetPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != string(binaryData) {
+			t.Fatalf("expected binary replaced with %q, got %q", binaryData, got)
+		}
+	})
+
+	t.Run("returns error when checksum mismatches", func(t *testing.T) {
+		mismatchBody := fmt.Sprintf("%s  %s\n", strings.Repeat("0", 64), platform.SelfBinaryName(info))
+		server := newUpgradeTestServer(t, info, version, binaryData, mismatchBody, true)
+		defer server.Close()
+
+		client := &github.Client{
+			BaseURL:         server.URL,
+			DownloadBaseURL: server.URL,
+			HTTPClient:      server.Client(),
+		}
+
+		targetPath := filepath.Join(t.TempDir(), "vc-env")
+		originalContent := []byte("old")
+		if err := os.WriteFile(targetPath, originalContent, 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		var err error
+		_ = captureStdout(t, func() {
+			err = upgradeWithClient(client, targetPath, info, version)
+		})
+
+		if err == nil {
+			t.Fatal("expected checksum mismatch error, got nil")
+		}
+		if !strings.Contains(err.Error(), "checksum mismatch") {
+			t.Fatalf("expected error to contain 'checksum mismatch', got %v", err)
+		}
+
+		got, err := os.ReadFile(targetPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != string(originalContent) {
+			t.Fatalf("binary should not be replaced on mismatch, got %q", got)
+		}
+	})
+
+	t.Run("warns and continues when checksums.txt is missing", func(t *testing.T) {
+		server := newUpgradeTestServer(t, info, version, binaryData, "", false)
+		defer server.Close()
+
+		client := &github.Client{
+			BaseURL:         server.URL,
+			DownloadBaseURL: server.URL,
+			HTTPClient:      server.Client(),
+		}
+
+		targetPath := filepath.Join(t.TempDir(), "vc-env")
+		if err := os.WriteFile(targetPath, []byte("old"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		output := captureStdout(t, func() {
+			if err := upgradeWithClient(client, targetPath, info, version); err != nil {
+				t.Fatalf("upgradeWithClient failed: %v", err)
+			}
+		})
+
+		if !strings.Contains(output, "Warning: could not download checksums for vc-env") {
+			t.Errorf("expected missing-checksums warning, got %q", output)
+		}
+		if strings.Contains(output, "Checksum verified successfully") {
+			t.Errorf("verification message should not appear when checksums.txt is missing, got %q", output)
+		}
+
+		got, err := os.ReadFile(targetPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != string(binaryData) {
+			t.Fatalf("expected binary replaced with %q, got %q", binaryData, got)
+		}
+	})
 }

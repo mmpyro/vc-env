@@ -133,7 +133,7 @@ Then wire the shim into your shell:
 # in ~/.bashrc or ~/.zshrc
 export VCENV_ROOT="$HOME/.vcenv"
 eval "$(vc-env init)"
-source <(vc-env autocompletion)
+source <(vc-env completion bash)  # or: zsh / fish / powershell
 ```
 
 Full install details, platform notes and troubleshooting:

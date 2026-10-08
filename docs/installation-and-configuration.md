@@ -158,6 +158,40 @@ Notes:
 
 - The `.vcluster-version` lookup walks upward until the filesystem root.
 - All version values are treated as strings and trimmed for whitespace.
+- A value may be an alias (`latest`, `latest-stable`, `latest-prerelease`,
+  `MAJOR.MINOR`, `~MAJOR.MINOR.PATCH`) which the shim re-resolves on every
+  call. See the [CLI reference "Version aliases" section](cli-reference.md#version-aliases).
+
+## Auto-install for teammates
+
+Set `VCENV_AUTO_INSTALL=1` in your shell profile to have the `vcluster` shim
+install any missing version on demand (via `vc-env ensure`). This is the
+smoothest onboarding experience when a repository ships a
+`.vcluster-version` file.
+
+```sh
+export VCENV_AUTO_INSTALL=1
+```
+
+Without this variable, the shim still resolves aliases to installed concrete
+versions when possible, and otherwise prints a helpful error that tells you
+how to install the missing version or enable auto-install.
+
+## Air-gapped installs
+
+If GitHub is not reachable, download the vcluster binary ahead of time and
+install it from the local path. Supply the checksum you obtained
+out-of-band so vc-env verifies integrity:
+
+```sh
+vc-env install 0.21.1 \
+  --from-file ./vcluster-linux-amd64 \
+  --sha256 <hex-digest>
+```
+
+`--from-file` always requires a concrete `<version>` argument and never
+touches the network. If `--sha256` is omitted, vc-env proceeds but prints a
+warning that integrity was not verified.
 
 ## Common troubleshooting
 

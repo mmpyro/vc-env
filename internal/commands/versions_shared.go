@@ -102,3 +102,12 @@ func loadStaleCache(c *cache.Cache) (versions []string, prereleaseVersions []str
 	staleReader := cache.NewWithTTL(c.Dir(), 1<<62) // effectively infinite TTL
 	return staleReader.Load()
 }
+
+// cachedRemoteVersions returns the on-disk cached stable and prerelease
+// versions without touching the network. It is intended for latency-sensitive
+// paths like shell completion, where a slow or offline network must never
+// block the user. Returns (nil, nil, false) if no cache file exists.
+func cachedRemoteVersions() (stable []string, prerelease []string, ok bool) {
+	c := newCacheForRoot()
+	return loadStaleCache(c)
+}

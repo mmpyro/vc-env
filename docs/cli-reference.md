@@ -27,7 +27,9 @@ Conventions:
 | [`upgrade`](#upgrade) | Replace the current `vc-env` binary with the latest release |
 | [`exec`](#exec) | Run `vcluster` at a specific version for a single command |
 | [`status`](#status) | Show `VCENV_ROOT`, resolved version, source and all installed versions |
-| [`autocompletion`](#autocompletion) | Print a bash autocompletion script |
+| [`completion`](#completion) | Generate a native completion script for `bash`, `zsh`, `fish` or `powershell` |
+| [`resolve`](#resolve) | Resolve a version or alias to a concrete version (no install) |
+| [`ensure`](#ensure) | Resolve an alias and install the concrete version if missing |
 
 ## Global usage
 
@@ -51,6 +53,16 @@ Optional. When set, it forces a particular `vcluster` version to be used (highes
 
 Typically set via `vc-env shell` after enabling shell integration with `eval "$(vc-env init)"`.
 
+### `VCENV_AUTO_INSTALL`
+
+Optional. When set to `1`, the `vcluster` shim automatically installs missing
+versions on demand instead of failing with an error. This is especially useful
+for teammates cloning a repository with a `.vcluster-version` file.
+
+Internally the shim calls `vc-env ensure <version>`, which also resolves
+aliases (`latest`, `0.21`, `~0.21.1`, …) to a concrete version before
+installing.
+
 ### `VCENV_GITHUB_TOKEN`
 
 Optional. GitHub personal access token used to authenticate requests to the GitHub API (and asset downloads from private mirrors / GHES). When set it is sent as `Authorization: Bearer <token>` on every GitHub request issued by `vc-env`, raising the anonymous rate limit (60/h) to the authenticated limit (5000/h).
@@ -68,6 +80,23 @@ Optional. Overrides the GitHub API base URL (default `https://api.github.com`). 
 ### `VCENV_DOWNLOAD_MIRROR`
 
 Optional. Overrides the asset download base URL (default `https://github.com`). Set this to pull `vcluster` and `vc-env` release assets from an internal mirror (for air-gapped environments). `vc-env install`, `vc-env latest`, and `vc-env upgrade` all honour this value.
+
+## Version aliases
+
+Several commands (`install`, `global`, `local`, `shell`, `resolve`, `ensure`)
+accept version aliases in addition to concrete versions. Aliases are stored
+verbatim when written to `.vcluster-version`, `$VCENV_ROOT/version`, or
+`VCENV_VERSION`, and are re-resolved on every shim call.
+
+| Alias | Meaning |
+|---|---|
+| `latest`, `latest-stable` | Newest non-prerelease release |
+| `latest-prerelease` | Newest release including prereleases |
+| `MAJOR.MINOR` (e.g. `0.21`) | Highest patch of that minor |
+| `~MAJOR.MINOR.PATCH` (e.g. `~0.21.1`) | Highest version `>=0.21.1 <0.22.0` |
+
+Resolution tries installed versions first (fast, offline), then falls back to
+the remote release list.
 
 ## Commands
 
@@ -263,19 +292,28 @@ vc-env latest
 
 Purpose: Download and install a `vcluster` version into `$VCENV_ROOT/versions/<version>/vcluster`.
 
-If `<version>` is omitted, `vc-env` installs the latest stable version.
+If `<version>` is omitted, `vc-env` installs the latest stable version. An
+alias (e.g. `latest`, `0.21`, `~0.21.1`) is resolved first and the concrete
+version is then installed. See [Version aliases](#version-aliases).
 
 The command displays a progress bar during the download and automatically verifies the integrity of the downloaded file using SHA256 checksums from the GitHub release.
 
 Syntax:
 
 ```text
-vc-env install [version] [flags]
+vc-env install [version-or-alias] [flags]
 ```
 
 Options/flags:
 
 - `-s`, `--silent`: do not display the progress bar or checksum verification information
+- `--from-file <path>`: install the given local file as the vcluster binary
+  instead of downloading. Requires a concrete `<version>` argument and skips
+  all network calls (air-gapped setups). Combine with `--sha256` to verify
+  integrity.
+- `--sha256 <hex>`: expected hex-encoded SHA-256 of the binary. Overrides the
+  checksums.txt from the GitHub release and applies to both remote and
+  `--from-file` installs. A mismatch aborts installation.
 - `-h`, `--help`: show command help and exit
 
 Environment variables:
@@ -300,6 +338,11 @@ Example:
 vc-env install 0.21.1
 vc-env install --silent
 vc-env install
+vc-env install 0.21                                  # highest 0.21.x
+vc-env install ~0.21.1                               # >=0.21.1 <0.22.0
+vc-env install latest
+# Air-gapped install from a pre-downloaded binary:
+vc-env install 0.21.1 --from-file ./vcluster --sha256 <hex>
 ```
 
 ---
@@ -336,6 +379,11 @@ vc-env uninstall 0.21.1
 ### `shell`
 
 Purpose: Set or show the shell-level `vcluster` version.
+
+The `<version>` argument may be a concrete version (which must be installed)
+or an alias (`latest`, `0.21`, `~0.21.1`, …). Aliases are stored verbatim and
+re-resolved by the shim on every `vcluster` call. See
+[Version aliases](#version-aliases).
 
 !!! note "Requires shell integration"
     To *set* the version for your current shell session, you must have
@@ -376,7 +424,10 @@ vcluster version
 
 Purpose: Set or show the local (directory-level) `vcluster` version.
 
-Setting writes a `.vcluster-version` file into the current directory.
+Setting writes a `.vcluster-version` file into the current directory. The
+value may be a concrete version or an alias (`latest`, `0.21`, `~0.21.1`, …).
+Aliases are stored verbatim and re-resolved by the shim on every `vcluster`
+call. See [Version aliases](#version-aliases).
 
 Syntax:
 
@@ -410,7 +461,10 @@ vcluster version
 
 Purpose: Set or show the global default `vcluster` version.
 
-Setting writes `$VCENV_ROOT/version`.
+Setting writes `$VCENV_ROOT/version`. The value may be a concrete version or
+an alias (`latest`, `0.21`, `~0.21.1`, …). Aliases are stored verbatim and
+re-resolved by the shim on every `vcluster` call. See
+[Version aliases](#version-aliases).
 
 Syntax:
 
@@ -576,48 +630,152 @@ vc-env status
 
 ---
 
-### `autocompletion`
+### `completion`
 
-Purpose: Generate bash autocompletion script for `vc-env`.
+Purpose: Generate a native shell completion script for `vc-env`.
 
-The script provides completion for subcommands and suggests installed versions for commands that accept a version argument (`install`, `uninstall`, `shell`, `local`, `global`, `exec`).
+The script completes subcommands and dynamically suggests versions:
+
+- Installed versions for `uninstall`, `shell`, `local`, `global`, and `exec`.
+- Cached remote versions for `install` (never performs a network request; falls back to the compiled-in baseline when the cache is empty).
+- Shell names (`bash`, `zsh`, `fish`, `powershell`) for `completion`.
 
 Syntax:
 
 ```text
-vc-env autocompletion
+vc-env completion <bash|zsh|fish|powershell>
 ```
 
 Options/flags:
 
 - `-h`, `--help`: show command help and exit
 
-Environment variables: none.
+Environment variables:
+- `VCENV_ROOT` (read at completion time by the generated scripts, via `vc-env __complete-versions`).
 
 Exit codes:
 
 - `0` on success.
+- `1` if the shell argument is missing or unsupported.
 
-Examples:
+Install (Bash):
 
-=== "bash"
+```sh
+# Current session
+source <(vc-env completion bash)
 
-    ```sh
-    # Current session only
-    source <(vc-env autocompletion)
+# Permanently
+echo 'source <(vc-env completion bash)' >> ~/.bashrc
+```
 
-    # Permanent
-    echo 'source <(vc-env autocompletion)' >> ~/.bashrc
-    ```
+Install (Zsh):
 
-=== "zsh"
+```sh
+# Ensure the compsys framework is loaded once in ~/.zshrc:
+autoload -Uz compinit && compinit
 
-    ```sh
-    # Current session only (zsh understands the bash completion spec via
-    # bashcompinit).
-    autoload -Uz +X compinit && compinit
-    autoload -Uz +X bashcompinit && bashcompinit
-    source <(vc-env autocompletion)
+# Current session
+source <(vc-env completion zsh)
 
-    # Permanent — add the three lines above to ~/.zshrc
-    ```
+# Permanently
+echo 'source <(vc-env completion zsh)' >> ~/.zshrc
+```
+
+Install (Fish):
+
+```fish
+# Current session
+vc-env completion fish | source
+
+# Permanently
+vc-env completion fish > ~/.config/fish/completions/vc-env.fish
+```
+
+Install (PowerShell):
+
+```powershell
+# Current session
+vc-env completion powershell | Out-String | Invoke-Expression
+
+# Permanently (append to your $PROFILE)
+Add-Content -Path $PROFILE -Value 'vc-env completion powershell | Out-String | Invoke-Expression'
+```
+
+Internal helper:
+
+The generated scripts call `vc-env __complete-versions {installed|remote}` to list candidate versions. This command is not part of the public interface and may change at any time, but it is safe to invoke manually for debugging.
+
+Back-compat:
+
+`vc-env autocompletion` remains available as a deprecated alias for `vc-env completion bash`; it prints a deprecation notice to stderr. Existing `~/.bashrc` snippets continue to work unchanged.
+
+---
+
+### `resolve`
+
+Purpose: Resolve a version alias to a concrete version and print it to stdout.
+Does not install anything.
+
+Primarily intended for scripts and for the `vcluster` shim as a fallback when
+`VCENV_AUTO_INSTALL` is not set.
+
+Syntax:
+
+```text
+vc-env resolve <version-or-alias>
+```
+
+See [Version aliases](#version-aliases) for the supported syntax.
+
+Environment variables:
+
+- `VCENV_ROOT` (optional; speeds up resolution by matching installed versions first)
+
+Exit codes:
+
+- `0` on success.
+- `1` on resolution failure (no matching version in installed or remote lists).
+
+Example:
+
+```sh
+vc-env resolve latest        # e.g. 0.31.0
+vc-env resolve 0.21          # e.g. 0.21.3
+vc-env resolve ~0.21.1       # e.g. 0.21.3
+vc-env resolve 0.21.1        # 0.21.1 (echoed verbatim)
+```
+
+---
+
+### `ensure`
+
+Purpose: Resolve a version alias and install the concrete version if it is
+not already installed. Prints the concrete version to stdout.
+
+This is the subcommand the `vcluster` shim invokes when
+`VCENV_AUTO_INSTALL=1` is set and the requested version isn't yet present.
+Install runs silently (no progress bar) so the shim can capture the final
+line as the resolved version.
+
+Syntax:
+
+```text
+vc-env ensure <version-or-alias>
+```
+
+Environment variables:
+
+- `VCENV_ROOT` (required)
+
+Exit codes:
+
+- `0` on success.
+- `1` on resolution failure, download failure, or checksum mismatch.
+
+Example:
+
+```sh
+export VCENV_AUTO_INSTALL=1
+vc-env ensure latest
+vc-env ensure 0.21
+```

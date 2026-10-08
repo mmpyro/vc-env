@@ -113,7 +113,16 @@ vc-env install 0.21.1
 
 # Install the latest stable version
 vc-env install
+
+# Install using an alias (resolves to a concrete version)
+vc-env install latest        # newest non-prerelease
+vc-env install 0.21          # highest 0.21.x
+vc-env install ~0.21.1       # highest 0.21.y with y >= 1
 ```
+
+Tip: set `VCENV_AUTO_INSTALL=1` in your shell profile and the `vcluster`
+shim will install missing versions automatically on first use — ideal when
+teammates clone a repo containing a `.vcluster-version` file.
 
 ### 4. Set a version
 
@@ -149,16 +158,18 @@ Full reference: [docs/cli-reference.md](docs/cli-reference.md)
 | `vc-env latest` | Print the latest available version of vcluster from GitHub |
 | `vc-env init` | Initialize vc-env setup |
 | `vc-env status` | Show current environment status |
-| `vc-env install [VERSION]` | Install a specific version (or latest) |
+| `vc-env install [VERSION\|ALIAS]` | Install a specific version or alias (or latest). Supports `--from-file`, `--sha256` |
 | `vc-env uninstall VERSION` | Uninstall a specific version |
 | `vc-env exec VERSION CMD` | Run a command using a specific vcluster version |
-| `vc-env shell [VERSION]` | Set/show shell version (`VCENV_VERSION`) |
-| `vc-env local [VERSION]` | Set/show local version (`.vcluster-version`) |
-| `vc-env global [VERSION]` | Set/show global version (`$VCENV_ROOT/version`) |
+| `vc-env shell [VERSION\|ALIAS]` | Set/show shell version (`VCENV_VERSION`) |
+| `vc-env local [VERSION\|ALIAS]` | Set/show local version (`.vcluster-version`) |
+| `vc-env global [VERSION\|ALIAS]` | Set/show global version (`$VCENV_ROOT/version`) |
+| `vc-env resolve VERSION\|ALIAS` | Print the concrete version an alias resolves to |
+| `vc-env ensure VERSION\|ALIAS` | Resolve + install if missing (used by shim auto-install) |
 | `vc-env which` | Print path to active vcluster binary |
 | `vc-env version` | Print vc-env version |
 | `vc-env upgrade` | Download the latest stable release of vc-env from GitHub and replace the current binary in-place |
-| `ev-env autocompletion` | Generate a Bash autocompletion script for a smoother CLI experience |
+| `vc-env completion <shell>` | Generate a shell completion script (`bash`, `zsh`, `fish`, or `powershell`) for a smoother CLI experience |
 
 ## Version Priority
 
@@ -172,6 +183,8 @@ If no version is configured at any level, the command fails with an informative 
 
 ## Shell Setup
 
+`vc-env` ships native completion scripts for Bash, Zsh, Fish, and PowerShell. Choose the block that matches your shell.
+
 ### Bash
 
 Add the following to your `~/.bashrc`:
@@ -180,7 +193,7 @@ Add the following to your `~/.bashrc`:
 # vc-env setup
 export VCENV_ROOT="$HOME/.vcenv"
 eval "$(vc-env init)"
-source <(vc-env autocompletion)
+source <(vc-env completion bash)
 ```
 
 ### Zsh
@@ -191,8 +204,41 @@ Add the following to your `~/.zshrc`:
 # vc-env setup
 export VCENV_ROOT="$HOME/.vcenv"
 eval "$(vc-env init)"
-source <(vc-env autocompletion)
+
+# Zsh completion requires the completion system to be initialised once.
+autoload -Uz compinit && compinit
+source <(vc-env completion zsh)
 ```
+
+### Fish
+
+Add the following to your `~/.config/fish/config.fish`:
+
+```fish
+# vc-env setup
+set -gx VCENV_ROOT "$HOME/.vcenv"
+vc-env init | source
+vc-env completion fish | source
+```
+
+Or install the completion persistently so it loads automatically:
+
+```fish
+vc-env completion fish > ~/.config/fish/completions/vc-env.fish
+```
+
+### PowerShell
+
+Add the following to your `$PROFILE`:
+
+```powershell
+# vc-env setup
+$env:VCENV_ROOT = "$HOME\.vcenv"
+vc-env init | Out-String | Invoke-Expression
+vc-env completion powershell | Out-String | Invoke-Expression
+```
+
+> `vc-env autocompletion` is still accepted as a deprecated alias for `vc-env completion bash` so existing shell rc files keep working.
 
 ## Caching
 

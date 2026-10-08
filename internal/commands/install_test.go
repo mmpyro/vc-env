@@ -3,6 +3,7 @@ package commands
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -120,6 +121,188 @@ func TestInstall(t *testing.T) {
 		binaryPath := filepath.Join(tmpDir, "versions", version, "vcluster")
 		if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
 			t.Fatal("binary was not written")
+		}
+	})
+}
+
+func TestInstallWithOptions(t *testing.T) {
+	t.Run("alias resolves to concrete and installs", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("VCENV_ROOT", tmpDir)
+		if err := os.MkdirAll(filepath.Join(tmpDir, "versions"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		binaryData := []byte("fake binary content")
+		checksum := sha256.Sum256(binaryData)
+		checksumStr := hex.EncodeToString(checksum[:])
+
+		releases := []github.Release{
+			{TagName: "v0.21.3", Prerelease: false, Draft: false},
+			{TagName: "v0.21.0", Prerelease: false, Draft: false},
+		}
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch {
+			case strings.Contains(r.URL.Path, "/releases") && !strings.Contains(r.URL.Path, "/latest"):
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(releases)
+			case strings.HasSuffix(r.URL.Path, "checksums.txt"):
+				fmt.Fprintf(w, "%s  vcluster-linux-amd64\n%s  vcluster-linux-arm64\n%s  vcluster-darwin-amd64\n%s  vcluster-darwin-arm64\n",
+					checksumStr, checksumStr, checksumStr, checksumStr)
+			default:
+				w.Header().Set("Content-Length", fmt.Sprintf("%d", len(binaryData)))
+				_, _ = w.Write(binaryData)
+			}
+		}))
+		defer server.Close()
+
+		client := &github.Client{
+			BaseURL:         server.URL,
+			DownloadBaseURL: server.URL,
+			HTTPClient:      server.Client(),
+		}
+
+		err := installWithOptions(client, InstallOptions{Version: "0.21", Silent: true})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		binaryPath := filepath.Join(tmpDir, "versions", "0.21.3", "vcluster")
+		if _, err := os.Stat(binaryPath); err != nil {
+			t.Fatalf("expected alias to install 0.21.3: %v", err)
+		}
+	})
+
+	t.Run("from-file installs local binary", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("VCENV_ROOT", tmpDir)
+		if err := os.MkdirAll(filepath.Join(tmpDir, "versions"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		src := filepath.Join(tmpDir, "src", "vcluster")
+		if err := os.MkdirAll(filepath.Dir(src), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		data := []byte("local binary bytes")
+		if err := os.WriteFile(src, data, 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		checksum := sha256.Sum256(data)
+		checksumStr := hex.EncodeToString(checksum[:])
+
+		err := installWithOptions(nil, InstallOptions{
+			Version:  "0.42.0",
+			Silent:   true,
+			FromFile: src,
+			SHA256:   checksumStr,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		dst := filepath.Join(tmpDir, "versions", "0.42.0", "vcluster")
+		got, err := os.ReadFile(dst)
+		if err != nil {
+			t.Fatalf("binary not written: %v", err)
+		}
+		if string(got) != string(data) {
+			t.Fatal("installed binary bytes differ from source")
+		}
+	})
+
+	t.Run("from-file with wrong sha256 aborts", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("VCENV_ROOT", tmpDir)
+		if err := os.MkdirAll(filepath.Join(tmpDir, "versions"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		src := filepath.Join(tmpDir, "src", "vcluster")
+		if err := os.MkdirAll(filepath.Dir(src), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(src, []byte("bytes"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		err := installWithOptions(nil, InstallOptions{
+			Version:  "0.42.0",
+			Silent:   true,
+			FromFile: src,
+			SHA256:   strings.Repeat("0", 64),
+		})
+		if err == nil {
+			t.Fatal("expected checksum mismatch error")
+		}
+		if !strings.Contains(err.Error(), "checksum mismatch") {
+			t.Fatalf("expected checksum mismatch error, got %v", err)
+		}
+
+		// Binary must NOT have been written.
+		if _, err := os.Stat(filepath.Join(tmpDir, "versions", "0.42.0", "vcluster")); !os.IsNotExist(err) {
+			t.Fatal("binary should not have been written on checksum failure")
+		}
+	})
+
+	t.Run("from-file rejects alias version", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("VCENV_ROOT", tmpDir)
+		if err := os.MkdirAll(filepath.Join(tmpDir, "versions"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		err := installWithOptions(nil, InstallOptions{
+			Version:  "latest",
+			Silent:   true,
+			FromFile: "/nonexistent",
+		})
+		if err == nil {
+			t.Fatal("expected error for alias with --from-file")
+		}
+	})
+
+	t.Run("explicit sha256 on remote download is used instead of checksums.txt", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("VCENV_ROOT", tmpDir)
+		if err := os.MkdirAll(filepath.Join(tmpDir, "versions"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		binaryData := []byte("content")
+		expected := sha256.Sum256(binaryData)
+		expectedHex := hex.EncodeToString(expected[:])
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasSuffix(r.URL.Path, "checksums.txt") {
+				t.Errorf("checksums.txt should not be fetched when --sha256 is provided; path=%s", r.URL.Path)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(binaryData)))
+			_, _ = w.Write(binaryData)
+		}))
+		defer server.Close()
+
+		client := &github.Client{
+			BaseURL:         server.URL,
+			DownloadBaseURL: server.URL,
+			HTTPClient:      server.Client(),
+		}
+
+		err := installWithOptions(client, InstallOptions{
+			Version: "0.21.1",
+			Silent:  true,
+			SHA256:  expectedHex,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if _, err := os.Stat(filepath.Join(tmpDir, "versions", "0.21.1", "vcluster")); err != nil {
+			t.Fatalf("binary not written: %v", err)
 		}
 	})
 }
