@@ -1,0 +1,15 @@
+.vc-hero {
+  text-align: center;
+  padding: 1rem 0 0.5rem;
+}
+.vc-hero h1 {
+  margin-bottom: 0.4rem;
+  font-weight: 700;
+}
+.vc-hero .md-button {
+  margin: 0.25rem;
+}
+/* Clickable nodes in mermaid diagrams. */
+.mermaid .clickable {
+  cursor: pointer;
+}

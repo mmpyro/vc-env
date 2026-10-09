@@ -18,40 +18,44 @@ If your platform is not listed, install from source.
 - A POSIX-like shell (e.g. `bash` or `zsh`).
 - Permission to create and write files in your chosen `VCENV_ROOT` directory.
 - Network access to GitHub:
-  - `vc-env install`, `vc-env latest`, and `vc-env list-remote` fetch information from GitHub.
+    - `vc-env install`, `vc-env latest`, and `vc-env list-remote` fetch information from GitHub.
 
 No existing `vcluster` installation is required; `vc-env` manages the `vcluster` binaries it installs.
 
 ## Install methods
 
-### Option A: Install a prebuilt binary (recommended)
+=== "Prebuilt binary (recommended)"
 
-1. Download the binary for your platform from the project’s GitHub releases.
-2. Make it executable and move it into a directory on your `PATH`.
+    1. Download the binary for your platform from the project's
+       [GitHub releases](https://github.com/mmpyro/vc-env/releases).
+    2. Make it executable and move it into a directory on your `PATH`.
 
-Example (Linux x86_64):
+    Example (Linux x86_64):
 
-```sh
-curl -L -o vc-env https://github.com/mmpyro/vc-env/releases/download/v1.0.0/vc-env-linux-amd64
-chmod +x vc-env
-sudo mv vc-env /usr/local/bin/vc-env
-```
+    ```sh
+    curl -L -o vc-env https://github.com/mmpyro/vc-env/releases/download/v1.0.0/vc-env-linux-amd64
+    chmod +x vc-env
+    sudo mv vc-env /usr/local/bin/vc-env
+    ```
 
-### Option B: Build from source
+=== "Build from source"
 
-```sh
-git clone https://github.com/mmpyro/vc-env.git
-cd vc-env
-make build
-```
+    ```sh
+    git clone https://github.com/mmpyro/vc-env.git
+    cd vc-env
+    make build
+    ```
 
-The binary will be available at `build/vc-env`.
+    The binary will be available at `build/vc-env`.
 
-### Option C: Cross-compile for all supported platforms
+=== "Cross-compile for all platforms"
 
-```sh
-make build-all
-```
+    ```sh
+    make build-all
+    ```
+
+    This produces `build/vc-env-<os>-<arch>` for `linux/amd64`,
+    `linux/arm64`, `darwin/amd64` and `darwin/arm64`.
 
 ## Initial setup
 
@@ -73,8 +77,9 @@ Required permissions:
 
 ### 2) Initialize shell integration
 
-Add this after the `VCENV_ROOT` export.
-Add this to your shell profile (e.g. `~/.bashrc` or `~/.zshrc`):
+Add this after the `VCENV_ROOT` export to your shell profile
+(e.g. `~/.bashrc` or `~/.zshrc`):
+
 ```sh
 eval "$(vc-env init)"
 ```
@@ -83,6 +88,11 @@ What this does:
 
 - Prepends `$VCENV_ROOT/shims` to your `PATH` so `vcluster` resolves to the shim.
 - Defines a `vc-env` shell function that enables `vc-env shell` to affect the current shell environment.
+
+!!! note "Why `eval` and not just a `source`"
+    `vc-env init` prints shell code to stdout. The `eval` applies it to
+    the current shell, which is what makes `vc-env shell <version>`
+    able to export `VCENV_VERSION` for your interactive session.
 
 ### 3) Install a `vcluster` version
 
@@ -100,23 +110,29 @@ vc-env install
 
 Pick one of:
 
-- Global default (applies everywhere unless overridden):
+=== "Global default"
 
-  ```sh
-  vc-env global 0.21.1
-  ```
+    Applies everywhere unless overridden.
 
-- Per-directory (creates `.vcluster-version` in the current directory):
+    ```sh
+    vc-env global 0.21.1
+    ```
 
-  ```sh
-  vc-env local 0.21.1
-  ```
+=== "Per-directory"
 
-- Per-shell session (sets `VCENV_VERSION`; requires `eval "$(vc-env init)"`):
+    Creates a `.vcluster-version` file in the current directory.
 
-  ```sh
-  vc-env shell 0.21.1
-  ```
+    ```sh
+    vc-env local 0.21.1
+    ```
+
+=== "Per-shell session"
+
+    Sets `VCENV_VERSION`; requires `eval "$(vc-env init)"`.
+
+    ```sh
+    vc-env shell 0.21.1
+    ```
 
 ## How configuration is discovered/loaded
 
@@ -125,6 +141,18 @@ When the `vcluster` shim runs, it selects a version using this priority order:
 1. `VCENV_VERSION` (shell version)
 2. `.vcluster-version` in the current directory or any parent directory (local version)
 3. `$VCENV_ROOT/version` (global version)
+
+```mermaid
+flowchart TD
+    start(["vcluster &lt;args&gt;"]) --> shell{"VCENV_VERSION<br/>set?"}
+    shell -- yes --> use["use that version"]
+    shell -- no --> local{".vcluster-version<br/>found walking up?"}
+    local -- yes --> use
+    local -- no --> global{"$VCENV_ROOT/version<br/>exists?"}
+    global -- yes --> use
+    global -- no --> err(["error:<br/>no vcluster version configured"])
+    use --> exec(["exec $VCENV_ROOT/versions/&lt;v&gt;/vcluster"])
+```
 
 Notes:
 
@@ -169,50 +197,60 @@ warning that integrity was not verified.
 
 ### `VCENV_ROOT not set`
 
-Symptoms:
+!!! warning "Symptom"
+    `vc-env init` prints instructions and exits with an error.
 
-- `vc-env init` prints instructions and exits with an error.
+!!! tip "Fix"
+    Export `VCENV_ROOT` and wire the shim into your current shell:
 
-Fix:
+    ```sh
+    export VCENV_ROOT="$HOME/.vcenv"
+    eval "$(vc-env init)"
+    ```
 
-```sh
-export VCENV_ROOT="$HOME/.vcenv"
-```
-
-Then ensure you also have:
-
-```sh
-eval "$(vc-env init)"
-```
+    Then add both lines to your `~/.bashrc` or `~/.zshrc` so they survive new shells.
 
 ### `vc-env: no vcluster version configured`
 
-This is emitted by the `vcluster` shim when none of the version sources are configured.
+!!! warning "Symptom"
+    The `vcluster` shim fails because none of the three version sources is set.
 
-Fix (choose one):
+!!! tip "Fix"
+    Pick the scope you want and set a version with the matching command:
 
-```sh
-vc-env global 0.21.1
-vc-env local 0.21.1
-vc-env shell 0.21.1
-```
+    ```sh
+    vc-env global 0.21.1   # machine-wide default
+    vc-env local  0.21.1   # per-directory (.vcluster-version)
+    vc-env shell  0.21.1   # per-shell (VCENV_VERSION)
+    ```
 
 ### `version <X> not installed`
 
-`vc-env` validates that a version is installed before setting it via `global`, `local`, or `shell`, and the shim also verifies the installed binary is present.
+!!! warning "Symptom"
+    `vc-env` validates that a version is installed before setting it via `global`, `local`, or `shell`, and the shim also verifies the installed binary is present.
 
-Fix:
+!!! tip "Fix"
+    Install the version first, then set it:
 
-```sh
-vc-env install <X>
-```
+    ```sh
+    vc-env install <X>
+    vc-env global  <X>
+    ```
 
 ### GitHub API rate limit exceeded
 
-Some commands query GitHub releases. If GitHub returns `403`, `vc-env` reports a rate limit error.
+!!! warning "Symptom"
+    Some commands query GitHub releases. If GitHub returns `403`, `vc-env` reports a rate limit error.
 
-Fixes:
+!!! tip "Fix"
+    Export a GitHub token so requests use the authenticated 5000/h quota
+    instead of the anonymous 60/h/IP one:
 
-- Wait and retry later.
-- If running in CI or heavily automated use, consider reducing frequency of `list-remote` / `latest` calls.
+    ```sh
+    export VCENV_GITHUB_TOKEN="<personal access token>"
+    # or, in CI, rely on the runner-injected GITHUB_TOKEN
+    ```
 
+    `VCENV_GITHUB_TOKEN` takes precedence over `GITHUB_TOKEN`. See the
+    [environment variables](cli-reference.md#environment-variables)
+    section for the full list.
