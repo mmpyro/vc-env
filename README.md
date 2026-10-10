@@ -21,14 +21,14 @@ opens the site at http://127.0.0.1:8000/vc-env/).
 
 ## Downloads (latest release)
 
-Latest release: **v1.0.0** (tag: `v1.0.0`).
+Latest release: **v1.2.0** (tag: `v1.2.0`).
 
 | Platform | Asset | Download |
 |---|---|---|
-| macOS (Intel) | `vc-env-darwin-amd64` | [Download](https://github.com/mmpyro/vc-env/releases/download/v1.0.0/vc-env-darwin-amd64) |
-| macOS (Apple Silicon) | `vc-env-darwin-arm64` | [Download](https://github.com/mmpyro/vc-env/releases/download/v1.0.0/vc-env-darwin-arm64) |
-| Linux (x86_64) | `vc-env-linux-amd64` | [Download](https://github.com/mmpyro/vc-env/releases/download/v1.0.0/vc-env-linux-amd64) |
-| Linux (ARM64) | `vc-env-linux-arm64` | [Download](https://github.com/mmpyro/vc-env/releases/download/v1.0.0/vc-env-linux-arm64) |
+| macOS (Intel) | `vc-env-darwin-amd64` | [Download](https://github.com/mmpyro/vc-env/releases/download/v1.2.0/vc-env-darwin-amd64) |
+| macOS (Apple Silicon) | `vc-env-darwin-arm64` | [Download](https://github.com/mmpyro/vc-env/releases/download/v1.2.0/vc-env-darwin-arm64) |
+| Linux (x86_64) | `vc-env-linux-amd64` | [Download](https://github.com/mmpyro/vc-env/releases/download/v1.2.0/vc-env-linux-amd64) |
+| Linux (ARM64) | `vc-env-linux-arm64` | [Download](https://github.com/mmpyro/vc-env/releases/download/v1.2.0/vc-env-linux-arm64) |
 
 ## Features
 

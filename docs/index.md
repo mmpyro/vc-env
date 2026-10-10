@@ -105,7 +105,7 @@ shell profile.
     ```sh
     os=$(uname -s | tr '[:upper:]' '[:lower:]')
     arch=$(uname -m); case $arch in x86_64) arch=amd64 ;; aarch64) arch=arm64 ;; esac
-    curl -fsSL -o vc-env "https://github.com/mmpyro/vc-env/releases/download/v1.0.0/vc-env-$os-$arch"
+    curl -fsSL -o vc-env "https://github.com/mmpyro/vc-env/releases/download/v1.2.0/vc-env-$os-$arch"
     chmod +x vc-env && sudo mv vc-env /usr/local/bin/vc-env
     vc-env version
     ```
