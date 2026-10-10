@@ -165,7 +165,7 @@ Notes:
 ## Auto-install for teammates
 
 Set `VCENV_AUTO_INSTALL=1` in your shell profile to have the `vcluster` shim
-install any missing version on demand (via `vc-env ensure`). This is the
+install any missing version on demand (via `vc-env resolve --install`). This is the
 smoothest onboarding experience when a repository ships a
 `.vcluster-version` file.
 

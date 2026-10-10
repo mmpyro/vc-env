@@ -2,8 +2,11 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"os/exec"
+	"strconv"
 	"strings"
 
 	"github.com/user/vc-env/internal/commands"
@@ -35,9 +38,11 @@ func main() {
 		commands.PrintVersion()
 
 	case "init":
+		exitOnHelp(args[1:], commands.InitHelp)
 		err = commands.Init()
 
 	case "list":
+		exitOnHelp(args[1:], commands.ListHelp)
 		err = commands.List()
 
 	case "list-remote":
@@ -102,61 +107,56 @@ func main() {
 		err = commands.InstallWith(opts)
 
 	case "uninstall":
-		version := ""
-		if len(args) > 1 {
-			version = args[1]
-		}
-		err = commands.Uninstall(version)
+		exitOnHelp(args[1:], commands.UninstallHelp)
+		err = commands.Uninstall(firstPositional(args[1:]))
 
 	case "shell":
-		version := ""
-		if len(args) > 1 {
-			version = args[1]
-		}
-		err = commands.Shell(version)
+		exitOnHelp(args[1:], commands.ShellHelp)
+		err = commands.Shell(firstPositional(args[1:]))
 
 	case "local":
-		version := ""
-		if len(args) > 1 {
-			version = args[1]
-		}
-		err = commands.Local(version)
+		exitOnHelp(args[1:], commands.LocalHelp)
+		err = commands.Local(firstPositional(args[1:]))
 
 	case "global":
-		version := ""
-		if len(args) > 1 {
-			version = args[1]
-		}
-		err = commands.Global(version)
+		exitOnHelp(args[1:], commands.GlobalHelp)
+		err = commands.Global(firstPositional(args[1:]))
 
 	case "which":
+		exitOnHelp(args[1:], commands.WhichHelp)
 		err = commands.Which()
 
 	case "upgrade":
+		// -h must never fall through to an actual upgrade.
+		exitOnHelp(args[1:], commands.UpgradeHelp)
 		err = commands.Upgrade()
 
-	case "completion":
+	case "completion", "autocompletion":
+		if args[0] == "autocompletion" {
+			fmt.Fprintln(os.Stderr, "vc-env: 'autocompletion' is deprecated; use 'vc-env completion'")
+		}
 		shell := ""
-		for _, arg := range args[1:] {
-			if arg == "-h" || arg == "--help" {
+		rest := args[1:]
+		for i := 0; i < len(rest); i++ {
+			arg := rest[i]
+			switch {
+			case arg == "-h" || arg == "--help":
 				commands.CompletionHelp()
 				os.Exit(0)
-			} else if shell == "" && !strings.HasPrefix(arg, "-") {
+			case arg == "--shell":
+				if i+1 >= len(rest) {
+					fmt.Fprintln(os.Stderr, "--shell requires a shell name")
+					os.Exit(1)
+				}
+				i++
+				shell = rest[i]
+			case strings.HasPrefix(arg, "--shell="):
+				shell = strings.TrimPrefix(arg, "--shell=")
+			case shell == "" && !strings.HasPrefix(arg, "-"):
 				shell = arg
 			}
 		}
 		err = commands.Completion(shell)
-
-	case "autocompletion":
-		// Back-compat: previously printed bash. Keep behavior, warn to stderr.
-		for _, arg := range args[1:] {
-			if arg == "-h" || arg == "--help" {
-				commands.CompletionHelp()
-				os.Exit(0)
-			}
-		}
-		fmt.Fprintln(os.Stderr, "vc-env: 'autocompletion' is deprecated; use 'vc-env completion bash'")
-		err = commands.Completion("bash")
 
 	case "__complete-versions":
 		// Internal: used by generated completion scripts. Lists installed or
@@ -164,42 +164,77 @@ func main() {
 		err = commands.CompleteVersions(args[1:])
 
 	case "status":
+		exitOnHelp(args[1:], commands.StatusHelp)
 		err = commands.Status()
 
-	case "exec":
-		version := ""
-		execArgs := []string{}
-		if len(args) > 1 {
-			version = args[1]
-			if len(args) > 2 {
-				execArgs = args[2:]
+	case "doctor":
+		fix, deep := false, false
+		for _, arg := range args[1:] {
+			switch arg {
+			case "-h", "--help":
+				commands.DoctorHelp()
+				os.Exit(0)
+			case "--fix":
+				fix = true
+			case "--deep":
+				deep = true
+			default:
+				fmt.Fprintf(os.Stderr, "Unknown flag for doctor: %s\n\n", arg)
+				commands.DoctorHelp()
+				os.Exit(1)
 			}
 		}
-		err = commands.Exec(version, execArgs)
+		err = commands.Doctor(fix, deep)
+
+	case "prune":
+		err = commands.Prune(parsePruneArgs(args[1:]))
+
+	case "exec":
+		opts := commands.ExecOptions{}
+		rest := args[1:]
+		// Flags are only recognised before the version; everything after it
+		// belongs to vcluster.
+		for i := 0; i < len(rest); i++ {
+			arg := rest[i]
+			if opts.Spec != "" {
+				opts.Args = rest[i:]
+				break
+			}
+			switch arg {
+			case "-h", "--help":
+				commands.ExecHelp()
+				os.Exit(0)
+			case "--auto":
+				opts.Auto = true
+			case "--no-auto":
+				opts.NoAuto = true
+			default:
+				opts.Spec = arg
+			}
+		}
+		err = commands.Exec(opts)
 
 	case "resolve":
-		version := ""
+		opts := commands.ResolveOptions{}
 		for _, arg := range args[1:] {
-			if arg == "-h" || arg == "--help" {
+			switch {
+			case arg == "-h" || arg == "--help":
 				commands.ResolveHelp()
 				os.Exit(0)
-			} else if version == "" && !strings.HasPrefix(arg, "-") {
-				version = arg
+			case arg == "--install":
+				opts.Install = true
+			case arg == "-s" || arg == "--silent":
+				opts.Silent = true
+			case opts.Spec == "" && !strings.HasPrefix(arg, "-"):
+				opts.Spec = arg
 			}
 		}
-		err = commands.Resolve(version)
+		err = commands.Resolve(opts)
 
 	case "ensure":
-		version := ""
-		for _, arg := range args[1:] {
-			if arg == "-h" || arg == "--help" {
-				commands.EnsureHelp()
-				os.Exit(0)
-			} else if version == "" && !strings.HasPrefix(arg, "-") {
-				version = arg
-			}
-		}
-		err = commands.Ensure(version)
+		// Advanced / internal: equivalent to 'resolve <spec> --install --silent'.
+		exitOnHelp(args[1:], commands.EnsureHelp)
+		err = commands.Ensure(firstPositional(args[1:]))
 
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n\n", args[0])
@@ -208,7 +243,87 @@ func main() {
 	}
 
 	if err != nil {
+		// A child started by 'exec' already reported its own failure; pass
+		// its exit code through untouched.
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) && exitErr.ExitCode() >= 0 {
+			os.Exit(exitErr.ExitCode())
+		}
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+// exitOnHelp prints help and exits 0 when args contain -h or --help.
+func exitOnHelp(args []string, help func()) {
+	for _, arg := range args {
+		if arg == "-h" || arg == "--help" {
+			help()
+			os.Exit(0)
+		}
+	}
+}
+
+// firstPositional returns the first argument that is not a flag, or "".
+func firstPositional(args []string) string {
+	for _, arg := range args {
+		if !strings.HasPrefix(arg, "-") {
+			return arg
+		}
+	}
+	return ""
+}
+
+// parsePruneArgs parses the prune flags, exiting on invalid input.
+func parsePruneArgs(rest []string) commands.PruneOptions {
+	opts := commands.PruneOptions{}
+	keepLast := func(val string) {
+		n, parseErr := strconv.Atoi(val)
+		if parseErr != nil || n < 0 {
+			fmt.Fprintf(os.Stderr, "invalid --keep-last value %q: must be a non-negative integer\n", val)
+			os.Exit(1)
+		}
+		opts.KeepLast = n
+	}
+	olderThan := func(val string) {
+		d, _, parseErr := commands.ParseDurationShorthand(val)
+		if parseErr != nil {
+			fmt.Fprintf(os.Stderr, "invalid --older-than value %q: %v\n", val, parseErr)
+			os.Exit(1)
+		}
+		opts.OlderThan = d
+		opts.OlderThanProvided = true
+	}
+	for i := 0; i < len(rest); i++ {
+		arg := rest[i]
+		switch {
+		case arg == "-h" || arg == "--help":
+			commands.PruneHelp()
+			os.Exit(0)
+		case arg == "--dry-run":
+			opts.DryRun = true
+		case arg == "--yes":
+			opts.Yes = true
+		case arg == "--keep-last" || arg == "--older-than":
+			if i+1 >= len(rest) {
+				fmt.Fprintf(os.Stderr, "%s requires a value\n", arg)
+				os.Exit(1)
+			}
+			i++
+			if arg == "--keep-last" {
+				keepLast(rest[i])
+			} else {
+				olderThan(rest[i])
+			}
+		case strings.HasPrefix(arg, "--keep-last="):
+			keepLast(strings.TrimPrefix(arg, "--keep-last="))
+		case strings.HasPrefix(arg, "--older-than="):
+			olderThan(strings.TrimPrefix(arg, "--older-than="))
+		default:
+			fmt.Fprintf(os.Stderr, "Unknown flag for prune: %s\n\n", arg)
+			commands.PruneHelp()
+			os.Exit(1)
+		}
+	}
+	return opts
 }

@@ -2,7 +2,9 @@ package shim
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -52,11 +54,14 @@ func TestGenerateShimScript(t *testing.T) {
 		if !strings.Contains(content, "VCENV_AUTO_INSTALL") {
 			t.Fatal("shim should honor VCENV_AUTO_INSTALL")
 		}
-		if !strings.Contains(content, `command vc-env ensure`) {
-			t.Fatal("shim should call 'vc-env ensure' when auto-install is enabled")
+		if !strings.Contains(content, `command vc-env resolve --install --silent`) {
+			t.Fatal("shim should call 'vc-env resolve --install --silent' when auto-install is enabled")
 		}
-		if !strings.Contains(content, `command vc-env resolve`) {
-			t.Fatal("shim should call 'vc-env resolve' as a fallback for aliases")
+		if !strings.Contains(content, `command vc-env resolve --silent`) {
+			t.Fatal("shim should call 'vc-env resolve --silent' as a fallback for aliases")
+		}
+		if strings.Contains(content, "vc-env ensure") {
+			t.Fatal("shim should no longer call 'vc-env ensure'")
 		}
 	})
 
@@ -108,6 +113,37 @@ func TestGenerateShellInit(t *testing.T) {
 		output := GenerateShellInit("/home/user/.vcenv")
 		if !strings.Contains(output, `command vc-env "$@"`) {
 			t.Fatal("shell init should delegate other commands to binary")
+		}
+	})
+
+	t.Run("shell flags pass through without exporting", func(t *testing.T) {
+		// POSIX sh rejects "vc-env" as a function name; the init code
+		// targets bash and zsh.
+		bash, err := exec.LookPath("bash")
+		if err != nil || runtime.GOOS == "windows" {
+			t.Skip("requires bash")
+		}
+		// A fake vc-env binary that just echoes its arguments.
+		bin := t.TempDir()
+		fake := filepath.Join(bin, "vc-env")
+		if err := os.WriteFile(fake, []byte("#!/bin/sh\necho \"args:$*\"\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		script := GenerateShellInit(t.TempDir()) + `
+vc-env shell --help
+echo "VCENV_VERSION=${VCENV_VERSION:-unset}"
+`
+		cmd := exec.Command(bash, "-c", script)
+		cmd.Env = []string{"PATH=" + bin + ":/usr/bin:/bin"}
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("bash failed: %v\n%s", err, out)
+		}
+		if !strings.Contains(string(out), "args:shell --help") {
+			t.Fatalf("expected help to be delegated, got:\n%s", out)
+		}
+		if !strings.Contains(string(out), "VCENV_VERSION=unset") {
+			t.Fatalf("shell --help must not export VCENV_VERSION, got:\n%s", out)
 		}
 	})
 }

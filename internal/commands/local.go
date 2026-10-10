@@ -8,6 +8,19 @@ import (
 	"github.com/user/vc-env/internal/semver"
 )
 
+// LocalHelp prints the help message for the local command.
+func LocalHelp() {
+	fmt.Println(`Usage: vc-env local [<version-or-alias>]
+
+Set or show the local vcluster version.  With an argument, writes
+.vcluster-version in the current directory.  Without an argument, prints the
+version from the nearest .vcluster-version (searching parent directories).
+Concrete versions must be installed; aliases are stored verbatim.
+
+Flags:
+  -h, --help     Show this help message`)
+}
+
 // Local manages the local (directory-level) vcluster version.
 // With a version argument: verifies it's installed and writes .vcluster-version.
 // Without argument: reads and prints the local version or errors.

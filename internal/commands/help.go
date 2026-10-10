@@ -20,15 +20,20 @@ Commands:
   global          Set or show the global version of vcluster cli (accepts aliases)
   latest          Print the latest available version of vcluster cli from GitHub releases.
   which           Print the full path to the active vcluster binary
-  exec            Run a command using a specific vcluster version
-  resolve         Print the concrete vcluster version that an alias resolves to
-  ensure          Resolve an alias and install the concrete version if missing
+  exec            Run vcluster at a specific version: exec [--auto|--no-auto] <version> [--] <args...>
+  resolve         Print the concrete installed version for a version, alias, or the
+                  active version. Flags: --install, -s/--silent
   status          Show current vc-env environment status
-  upgrade         Upgrade vc-env to the latest version
+  doctor          Diagnose the vc-env environment. Flags: --fix, --deep
+  prune           Remove unreferenced installed versions (dry run unless --yes).
+                  Flags: --keep-last N, --older-than DUR, --dry-run, --yes
+  upgrade         Upgrade vc-env to the latest release
   completion      Generate a shell completion script (bash|zsh|fish|powershell)
   version         Print the version of vc-env
 
-Version aliases (accepted by install/global/local/shell/resolve/ensure):
+Run 'vc-env <command> --help' for details on a command.
+
+Version aliases (accepted by install/global/local/shell/resolve/exec):
   latest, latest-stable    newest non-prerelease release
   latest-prerelease        newest release including prereleases
   MAJOR.MINOR  (0.21)      highest patch of that minor
@@ -37,9 +42,13 @@ Version aliases (accepted by install/global/local/shell/resolve/ensure):
 Environment:
   VCENV_ROOT               required; where versions, shims, and config live
   VCENV_VERSION            optional; forces a specific version (highest priority)
-  VCENV_AUTO_INSTALL=1     when set, the vcluster shim auto-installs missing
-                           versions on demand (equivalent to a cold cache
-                           hitting 'vc-env ensure')`)
+  VCENV_AUTO_INSTALL=1     install missing versions on demand (shim, resolve, exec)
+  VCENV_GITHUB_TOKEN       GitHub token for API requests (falls back to GITHUB_TOKEN)
+  VCENV_GITHUB_API_URL     GitHub API base URL (default https://api.github.com)
+  VCENV_DOWNLOAD_MIRROR    download base URL (default https://github.com)
+  VCENV_CACHE_TTL          release cache TTL as a Go duration (default 1h)
+  VCENV_PRUNE_SCAN_ROOTS   roots scanned by 'prune' for .vcluster-version files
+                           (path-list separated; default $HOME; empty disables)`)
 }
 
 // InstallHelp prints help for the install command.
