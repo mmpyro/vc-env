@@ -9,6 +9,17 @@ import (
 	"github.com/user/vc-env/internal/semver"
 )
 
+// GlobalHelp prints the help message for the global command.
+func GlobalHelp() {
+	fmt.Println(`Usage: vc-env global [<version-or-alias>]
+
+Set or show the global vcluster version ($VCENV_ROOT/version).  Concrete
+versions must be installed; aliases are stored verbatim.
+
+Flags:
+  -h, --help     Show this help message`)
+}
+
 // Global manages the global vcluster version.
 // With a version argument: verifies it's installed and writes $VCENV_ROOT/version.
 // Without argument: reads and prints the global version or errors.

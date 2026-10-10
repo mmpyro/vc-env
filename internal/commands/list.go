@@ -9,6 +9,16 @@ import (
 	"github.com/user/vc-env/internal/semver"
 )
 
+// ListHelp prints the help message for the list command.
+func ListHelp() {
+	fmt.Println(`Usage: vc-env list
+
+List all installed vcluster versions, newest first.
+
+Flags:
+  -h, --help     Show this help message`)
+}
+
 // List prints all installed vcluster versions.
 func List() error {
 	if err := config.RequireInit(); err != nil {

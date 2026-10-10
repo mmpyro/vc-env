@@ -15,6 +15,23 @@ import (
 
 const vcenvRepo = "mmpyro/vc-env"
 
+// UpgradeHelp prints the help message for the upgrade command.
+func UpgradeHelp() {
+	fmt.Println(`Usage: vc-env upgrade
+
+Fetch the latest vc-env release from GitHub (mmpyro/vc-env), verify its
+SHA-256 against the release's checksums.txt, and atomically replace the
+running binary.  Does nothing when already up to date.
+
+Flags:
+  -h, --help     Show this help message
+
+Environment:
+  VCENV_GITHUB_TOKEN     GitHub token (falls back to GITHUB_TOKEN)
+  VCENV_GITHUB_API_URL   GitHub API base URL (default https://api.github.com)
+  VCENV_DOWNLOAD_MIRROR  download base URL (default https://github.com)`)
+}
+
 // Upgrade downloads the latest stable vc-env release from GitHub and replaces
 // the current binary in-place using an atomic rename.
 func Upgrade() error {

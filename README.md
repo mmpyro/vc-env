@@ -158,18 +158,34 @@ Full reference: [docs/cli-reference.md](docs/cli-reference.md)
 | `vc-env latest` | Print the latest available version of vcluster from GitHub |
 | `vc-env init` | Initialize vc-env setup |
 | `vc-env status` | Show current environment status |
+| `vc-env doctor [--fix] [--deep]` | Diagnose the environment (PATH, shim, binaries, GitHub, cache); `--deep` verifies binaries against release checksums |
+| `vc-env prune [--keep-last N] [--older-than DUR] [--yes]` | Remove installed versions no `.vcluster-version`/global/shell setting references (dry run unless `--yes`) |
 | `vc-env install [VERSION\|ALIAS]` | Install a specific version or alias (or latest). Supports `--from-file`, `--sha256` |
 | `vc-env uninstall VERSION` | Uninstall a specific version |
-| `vc-env exec VERSION CMD` | Run a command using a specific vcluster version |
+| `vc-env exec [--auto\|--no-auto] VERSION\|ALIAS [--] ARGS...` | Run vcluster at a specific version; the child's exit code is passed through |
 | `vc-env shell [VERSION\|ALIAS]` | Set/show shell version (`VCENV_VERSION`) |
 | `vc-env local [VERSION\|ALIAS]` | Set/show local version (`.vcluster-version`) |
 | `vc-env global [VERSION\|ALIAS]` | Set/show global version (`$VCENV_ROOT/version`) |
-| `vc-env resolve VERSION\|ALIAS` | Print the concrete version an alias resolves to |
-| `vc-env ensure VERSION\|ALIAS` | Resolve + install if missing (used by shim auto-install) |
+| `vc-env resolve [VERSION\|ALIAS] [--install] [-s]` | Print the concrete installed version (no argument: the active version) |
 | `vc-env which` | Print path to active vcluster binary |
 | `vc-env version` | Print vc-env version |
-| `vc-env upgrade` | Download the latest stable release of vc-env from GitHub and replace the current binary in-place |
-| `vc-env completion <shell>` | Generate a shell completion script (`bash`, `zsh`, `fish`, or `powershell`) for a smoother CLI experience |
+| `vc-env upgrade` | Fetch the latest vc-env release from GitHub, verify its checksum, and replace the current binary in place |
+| `vc-env completion [SHELL] [--shell SHELL]` | Generate a shell completion script (`bash`, `zsh`, `fish`, `powershell`/`pwsh`; detected from `$SHELL` when omitted) |
+
+Every command accepts `-h`/`--help`.
+
+## Environment Variables
+
+| Variable | Purpose |
+|---|---|
+| `VCENV_ROOT` | Required. Where versions, shims, and config live |
+| `VCENV_VERSION` | Shell-level version (set by `vc-env shell`); highest priority |
+| `VCENV_AUTO_INSTALL` | `1`: install missing versions on demand (shim, `resolve`, `exec`) |
+| `VCENV_GITHUB_TOKEN` | GitHub token; falls back to `GITHUB_TOKEN` |
+| `VCENV_GITHUB_API_URL` | GitHub API base URL (default `https://api.github.com`), e.g. for GitHub Enterprise |
+| `VCENV_DOWNLOAD_MIRROR` | Download base URL (default `https://github.com`), e.g. for air-gapped mirrors |
+| `VCENV_CACHE_TTL` | Release cache TTL as a Go duration (default `1h`) |
+| `VCENV_PRUNE_SCAN_ROOTS` | Roots `prune` scans for `.vcluster-version` files (default `$HOME`; empty disables scanning) |
 
 ## Version Priority
 
@@ -238,7 +254,7 @@ vc-env init | Out-String | Invoke-Expression
 vc-env completion powershell | Out-String | Invoke-Expression
 ```
 
-> `vc-env autocompletion` is still accepted as a deprecated alias for `vc-env completion bash` so existing shell rc files keep working.
+> `vc-env autocompletion` is still accepted as a deprecated alias for `vc-env completion` (same arguments) so existing shell rc files keep working; it prints a deprecation warning to stderr.
 
 ## Caching
 

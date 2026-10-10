@@ -11,6 +11,17 @@ import (
 	"github.com/user/vc-env/internal/semver"
 )
 
+// StatusHelp prints the help message for the status command.
+func StatusHelp() {
+	fmt.Println(`Usage: vc-env status
+
+Show VCENV_ROOT, the active version and where it was set, the resolved binary
+path, and the installed versions.
+
+Flags:
+  -h, --help     Show this help message`)
+}
+
 // Status provides an overview of the current vc-env environment.
 func Status() error {
 	root, ok := config.GetVCEnvRoot()

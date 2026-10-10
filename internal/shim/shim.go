@@ -65,9 +65,9 @@ BINARY="$VCENV_ROOT/versions/$VERSION/vcluster"
 # hasn't been installed yet.  Delegate to vc-env to resolve/install.
 if [ ! -x "$BINARY" ]; then
     if [ "$VCENV_AUTO_INSTALL" = "1" ]; then
-        VERSION="$(command vc-env ensure "$VERSION")" || exit $?
+        VERSION="$(command vc-env resolve --install --silent)" || exit $?
     else
-        resolved="$(command vc-env resolve "$VERSION" 2>/dev/null)" || true
+        resolved="$(command vc-env resolve --silent 2>/dev/null)" || true
         if [ -n "$resolved" ]; then
             VERSION="$resolved"
         fi
@@ -102,6 +102,13 @@ func GenerateShellInit(vcenvRoot string) string {
 
 vc-env() {
   if [ "$1" = "shell" ]; then
+    case "$2" in
+      -*)
+        # Flags such as -h/--help never change the shell version.
+        command vc-env "$@"
+        return $?
+        ;;
+    esac
     if [ -n "$2" ]; then
       # Validate via the real binary first
       command vc-env shell "$2" || return $?

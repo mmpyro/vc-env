@@ -7,6 +7,16 @@ import (
 	"github.com/user/vc-env/internal/config"
 )
 
+// UninstallHelp prints the help message for the uninstall command.
+func UninstallHelp() {
+	fmt.Println(`Usage: vc-env uninstall <version>
+
+Remove an installed vcluster version from $VCENV_ROOT/versions.
+
+Flags:
+  -h, --help     Show this help message`)
+}
+
 // Uninstall removes an installed vcluster version.
 func Uninstall(version string) error {
 	if err := config.RequireInit(); err != nil {

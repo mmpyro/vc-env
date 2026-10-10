@@ -30,6 +30,28 @@ func captureStdout(t *testing.T, fn func()) string {
 	return buf.String()
 }
 
+// captureStderr captures stderr output from a function call.
+func captureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+
+	fn()
+
+	w.Close()
+	os.Stderr = old
+
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, r); err != nil {
+		t.Fatal(err)
+	}
+	return buf.String()
+}
+
 func TestPrintVersion(t *testing.T) {
 	t.Run("prints version", func(t *testing.T) {
 		Version = "1.2.3"

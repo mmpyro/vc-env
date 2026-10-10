@@ -8,6 +8,19 @@ import (
 	"github.com/user/vc-env/internal/semver"
 )
 
+// ShellHelp prints the help message for the shell command.
+func ShellHelp() {
+	fmt.Println(`Usage: vc-env shell [<version-or-alias>]
+
+Set or show the shell-level vcluster version (VCENV_VERSION).  With an
+argument, prints an export command; the shell function installed by
+'vc-env init' evaluates it.  Without an argument, prints the current shell
+version.  Concrete versions must be installed; aliases are stored verbatim.
+
+Flags:
+  -h, --help     Show this help message`)
+}
+
 // Shell manages the shell-level vcluster version.
 // With a version argument: verifies it's installed and outputs export command.
 // Without argument: prints the current shell version or errors.

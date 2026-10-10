@@ -7,12 +7,12 @@ import (
 
 func TestParse(t *testing.T) {
 	tests := []struct {
-		input      string
-		wantMajor  int
-		wantMinor  int
-		wantPatch  int
-		wantPre    string
-		wantOrig   string
+		input     string
+		wantMajor int
+		wantMinor int
+		wantPatch int
+		wantPre   string
+		wantOrig  string
 	}{
 		{"1.2.3", 1, 2, 3, "", "1.2.3"},
 		{"v1.2.3", 1, 2, 3, "", "v1.2.3"},
@@ -125,9 +125,9 @@ func TestMatchAlias(t *testing.T) {
 	}
 
 	tests := []struct {
-		alias   string
-		want    string
-		wantOk  bool
+		alias  string
+		want   string
+		wantOk bool
 	}{
 		// MAJOR.MINOR picks highest patch of that minor, excludes prereleases.
 		{"0.21", "0.21.3", true},
@@ -144,9 +144,9 @@ func TestMatchAlias(t *testing.T) {
 		{"~0.22.0", "0.22.1", true},
 		{"~0.20.0", "0.20.5", true},
 		// Invalid aliases
-		{"latest", "", false},        // caller handles named aliases
-		{"0.21.1", "", false},        // concrete, not an alias
-		{"~0.21", "", false},         // tilde requires MAJOR.MINOR.PATCH
+		{"latest", "", false}, // caller handles named aliases
+		{"0.21.1", "", false}, // concrete, not an alias
+		{"~0.21", "", false},  // tilde requires MAJOR.MINOR.PATCH
 		{"~bad.x.y", "", false},
 	}
 	for _, tt := range tests {

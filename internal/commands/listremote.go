@@ -46,4 +46,3 @@ func listRemoteWithClient(client *github.Client, includePrerelease bool) error {
 	}
 	return nil
 }
-
