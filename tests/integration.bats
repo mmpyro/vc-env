@@ -630,3 +630,145 @@ SCRIPT
 	assert_output --partial "checksum mismatch"
 	[ ! -f "${VCENV_ROOT}/versions/${test_ver}/vcluster" ]
 }
+
+@test "vc-env with no arguments prints help" {
+	run vc-env
+	assert_success
+	assert_output --partial "Commands:"
+}
+
+@test "vc-env --version and -v print the version" {
+	run vc-env --version
+	assert_success
+	assert_output --regexp "[0-9]+\.[0-9]+\.[0-9]+"
+
+	run vc-env -v
+	assert_success
+	assert_output --regexp "[0-9]+\.[0-9]+\.[0-9]+"
+}
+
+@test "vc-env unknown command fails and prints help" {
+	run vc-env not-a-command
+	assert_failure
+	assert_output --partial "Unknown command: not-a-command"
+	assert_output --partial "Commands:"
+}
+
+@test "vc-env init fails when VCENV_ROOT is unset" {
+	run env -u VCENV_ROOT vc-env init
+	assert_failure
+	assert_output --partial "VCENV_ROOT not set"
+}
+
+@test "vc-env -h short-circuits install, doctor, prune, init, list and ensure" {
+	local cmd
+	for cmd in install doctor prune init list list-remote ensure; do
+		run vc-env "${cmd}" -h
+		assert_success
+		assert_output --partial "Usage: vc-env ${cmd}"
+	done
+	# Help must not initialize or install anything.
+	[ ! -d "${VCENV_ROOT}/versions" ]
+}
+
+@test "vc-env list-remote --prerelease returns versions" {
+	vc-env init
+	run vc-env list-remote --prerelease
+	assert_success
+	assert_output --regexp "[0-9]+\.[0-9]+\.[0-9]+"
+}
+
+@test "vc-env shell without an argument prints VCENV_VERSION" {
+	vc-env init
+
+	VCENV_VERSION= run vc-env shell
+	assert_failure
+	assert_output --partial "no shell version configured"
+
+	VCENV_VERSION=9.9.1 run vc-env shell
+	assert_success
+	assert_output "9.9.1"
+}
+
+@test "vc-env ensure prints the concrete version for an installed alias" {
+	vc-env init
+	install_fake 9.9.1
+	install_fake 9.9.4
+
+	run vc-env ensure 9.9
+	assert_success
+	assert_output "9.9.4"
+}
+
+@test "vc-env ensure installs a missing version and prints only the version" {
+	vc-env init
+	run bash -c 'vc-env ensure 0.21.1 2>/dev/null'
+	assert_success
+	assert_output "0.21.1"
+	[ -x "${VCENV_ROOT}/versions/0.21.1/vcluster" ]
+}
+
+@test "vc-env ensure requires a version" {
+	vc-env init
+	run vc-env ensure
+	assert_failure
+	assert_output --partial "version or alias not specified"
+}
+
+@test "vc-env exec --auto installs a missing version and runs it" {
+	vc-env init
+	run vc-env exec --auto 0.21.1 version
+	assert_success
+	assert_output --regexp "([vV]ersion|[0-9]+\.[0-9]+\.[0-9])"
+	[ -x "${VCENV_ROOT}/versions/0.21.1/vcluster" ]
+}
+
+@test "vc-env exec --no-auto wins over VCENV_AUTO_INSTALL" {
+	vc-env init
+	VCENV_AUTO_INSTALL=1 run vc-env exec --no-auto 9.9.9 version
+	assert_failure
+	assert_output --partial "not installed"
+	[ ! -e "${VCENV_ROOT}/versions/9.9.9" ]
+}
+
+@test "vc-env doctor --deep verifies a real binary and fails a tampered one" {
+	vc-env init
+	vc-env install 0.21.1
+	vc-env global 0.21.1
+
+	run vc-env doctor --deep
+	assert_success
+	assert_output --partial "Deep checksums"
+	assert_output --partial "1 binaries verified against GitHub"
+
+	echo "tampered" > "${VCENV_ROOT}/versions/0.21.1/vcluster"
+	chmod +x "${VCENV_ROOT}/versions/0.21.1/vcluster"
+	run vc-env doctor --deep
+	assert_failure
+	assert_output --partial "checksum mismatch"
+	assert_output --partial "0.21.1"
+}
+
+@test "vc-env prune --keep-last keeps the newest unreferenced versions" {
+	vc-env init
+	install_fake 9.9.1
+	install_fake 9.9.2
+	install_fake 9.9.3
+
+	VCENV_VERSION= VCENV_PRUNE_SCAN_ROOTS="" run vc-env prune --yes --keep-last 2
+	assert_success
+	assert_output --partial "removed 9.9.1"
+	[ ! -d "${VCENV_ROOT}/versions/9.9.1" ]
+	[ -d "${VCENV_ROOT}/versions/9.9.2" ]
+	[ -d "${VCENV_ROOT}/versions/9.9.3" ]
+}
+
+@test "vc-env prune --dry-run does not remove versions even with --yes" {
+	vc-env init
+	install_fake 9.9.1
+
+	VCENV_VERSION= VCENV_PRUNE_SCAN_ROOTS="" run vc-env prune --yes --dry-run
+	assert_success
+	assert_output --partial "would remove 9.9.1"
+	[ -d "${VCENV_ROOT}/versions/9.9.1" ]
+}
