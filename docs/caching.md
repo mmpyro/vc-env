@@ -1,9 +1,9 @@
 # Caching strategy in `vc-env`
 
-`vc-env` uses a three-layer caching strategy to manage the list of
-available `vcluster` versions. This ensures that commands like
-`list-remote` and `latest` remain fast, reliable, and respectful of
-GitHub API rate limits.
+`vc-env` uses a three-layer caching strategy for the list of available
+`vcluster` versions. With this cache, commands like `list-remote` and
+`latest` stay fast and reliable. They also respect the GitHub API rate
+limits.
 
 ```mermaid
 flowchart TD
@@ -20,27 +20,29 @@ flowchart TD
 ## 1. The three layers
 
 ### Layer 1: Hardcoded baseline
-A list of historically known stable and pre-release versions is baked directly into the `vc-env` binary (see `internal/cache/baseline.go`).
+The `vc-env` binary contains a hardcoded list of known stable and pre-release versions (see `internal/cache/baseline.go`).
 
-*   **Zero latency**: Provides a useful starting point even on the very first run.
-*   **Offline fallback**: Acts as the ultimate fallback if both the disk cache and the network are unavailable.
-*   **Anchor point**: The newest version in this list is used as the "anchor" for the first delta fetch.
+The baseline gives a useful starting point with zero latency, even on the very first run.
+If both the disk cache and the network are unavailable, `vc-env` uses the baseline as the last fallback.
+The newest version in this list is the "anchor" for the first delta fetch.
 
 ### Layer 2: Disk cache
-When `VCENV_ROOT` is set, `vc-env` persists the merged list of versions to a JSON file at:
-`$VCENV_ROOT/cache/releases.json`
+When `VCENV_ROOT` is set, `vc-env` saves the merged list of versions to a JSON file at
+`$VCENV_ROOT/cache/releases.json`.
 
-*   **Freshness**: If the cache file is younger than the TTL (Time To Live), it is served immediately without any network calls.
-*   **Atomicity**: Writes use a "write-to-temp then rename" pattern to ensure that concurrent processes never read a partially written file.
+If the cache file is younger than the TTL (time to live), `vc-env` uses it immediately and makes no network calls.
+`vc-env` writes the cache to a temporary file and then renames it.
+As a result, concurrent processes never read a partially written file.
 
 ### Layer 3: Delta fetch
-If the disk cache is stale (older than TTL) or missing, `vc-env` performs a "delta fetch" from the GitHub API.
+If the disk cache is stale (older than the TTL) or missing, `vc-env` does a "delta fetch" from the GitHub API.
 
-*   **Efficiency**: Instead of fetching all history, it only requests releases newer than the most recent version found in the stale cache (or the baseline).
-*   **Auto-merge**: New releases are automatically merged with the existing known versions, deduplicated, and sorted.
-*   **Graceful degradation**: If the network is unavailable during a delta fetch, `vc-env` will print a warning and fall back to the stale cache or the hardcoded baseline.
+A delta fetch requests only the releases newer than the most recent version in the stale cache (or the baseline).
+`vc-env` automatically merges the new releases with the known versions. Then it removes duplicates and sorts the list.
+If the network is unavailable during a delta fetch, `vc-env` prints a warning.
+Then it falls back to the stale cache or the hardcoded baseline.
 
-A delta fetch, from the client's point of view, looks like this:
+From the client's point of view, a delta fetch looks like this:
 
 ```mermaid
 sequenceDiagram
@@ -68,16 +70,14 @@ sequenceDiagram
     end
 ```
 
----
-
 ## 2. Configuration
 
-You can customize the caching behavior using environment variables:
+Use these environment variables to configure the cache:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `VCENV_ROOT` | Root directory for `vc-env`. If not set, caching is memory-only (no disk persistence). | N/A |
-| `VCENV_CACHE_TTL` | How long a cache entry is considered fresh. Supports Go duration strings (e.g., `1h`, `30m`, `24h`, `0s`). | `1h` |
+| `VCENV_ROOT` | Root directory for `vc-env`. If it is not set, the cache is in memory only (nothing is saved to disk). | N/A |
+| `VCENV_CACHE_TTL` | How long a cache entry stays fresh. Takes a Go duration string (e.g., `1h`, `30m`, `24h`, `0s`). | `1h` |
 
 !!! tip "Disabling the cache"
     To force a fresh fetch every time, set the TTL to zero:
@@ -86,21 +86,19 @@ You can customize the caching behavior using environment variables:
     export VCENV_CACHE_TTL=0s
     ```
 
-    This still writes to disk after a successful fetch; it just never
+    `vc-env` still writes to disk after a successful fetch. But it never
     treats the on-disk copy as fresh.
-
----
 
 ## 3. Storage format
 
-The cache file (`releases.json`) stores:
+The cache file (`releases.json`) has these fields:
 
 *   `fetched_at`: UTC timestamp of the last successful fetch.
-*   `versions`: List of stable versions (newest-first).
-*   `prerelease_versions`: List of all versions including pre-releases (newest-first).
-
----
+*   `versions`: List of stable versions (newest first).
+*   `prerelease_versions`: List of all versions, including pre-releases (newest first).
 
 ## 4. Maintenance
 
-The hardcoded baseline should be updated periodically (e.g., when releasing a new version of `vc-env`) to keep the "lower bound" reasonably close to the current state of the world. However, the system is designed to correct itself automatically via delta fetches even if the baseline is significantly out of date.
+Maintainers should update the hardcoded baseline from time to time, for example when they release a new version of `vc-env`.
+This keeps the "lower bound" reasonably close to the current releases.
+But even if the baseline is far out of date, delta fetches correct the list automatically.
