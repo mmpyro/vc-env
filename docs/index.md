@@ -8,9 +8,9 @@ hide:
 
 # vc-env
 
-**A version manager for the [vcluster](https://www.vcluster.com/) CLI** —
-install many `vcluster` versions side by side and let a shim pick the right
-one per shell, per directory, or per machine.
+**A version manager for the [vcluster](https://www.vcluster.com/) CLI.**
+Install many `vcluster` versions side by side. A shim picks the right
+one per shell, per directory or per machine.
 
 [Get started](#install){ .md-button .md-button--primary }
 [Installation guide](installation-and-configuration.md){ .md-button }
@@ -18,13 +18,13 @@ one per shell, per directory, or per machine.
 
 </div>
 
-Think of `vc-env` as [tfenv](https://github.com/tfutils/tfenv) /
-[pyenv](https://github.com/pyenv/pyenv) for
+`vc-env` is like [tfenv](https://github.com/tfutils/tfenv) or
+[pyenv](https://github.com/pyenv/pyenv), but for
 [vcluster](https://www.vcluster.com/). It installs each `vcluster` binary
-under `$VCENV_ROOT/versions/<v>/vcluster`, drops a shim on your `PATH`, and
-resolves the right version at every call — so `vcluster create`,
-`vcluster connect` and friends keep working unchanged, they just hit the
-version you actually want.
+under `$VCENV_ROOT/versions/<v>/vcluster` and puts a shim on your `PATH`.
+The shim resolves the right version at every call. Commands such as
+`vcluster create` and `vcluster connect` work as before, but they run the
+version that you want.
 
 ```sh
 vc-env install 0.21.1      # download, checksum-verify, install
@@ -40,8 +40,9 @@ vcluster version           # → 0.21.1
 
     ---
 
-    `$VCENV_ROOT/shims/vcluster` is prepended to `PATH` and dispatches to
-    the resolved binary — scripts, IDEs and CI call `vcluster` as usual.
+    The shim `$VCENV_ROOT/shims/vcluster` comes first on `PATH`. It
+    dispatches each call to the resolved binary, so scripts, IDEs and CI
+    call `vcluster` as usual.
 
     [:octicons-arrow-right-24: How selection works](installation-and-configuration.md#how-configuration-is-discoveredloaded)
 
@@ -50,7 +51,7 @@ vcluster version           # → 0.21.1
     ---
 
     Shell (`VCENV_VERSION`) > local (`.vcluster-version`, walked up) >
-    global (`$VCENV_ROOT/version`). First match wins.
+    global (`$VCENV_ROOT/version`). The first match wins.
 
     [:octicons-arrow-right-24: CLI reference](cli-reference.md#commands)
 
@@ -58,9 +59,9 @@ vcluster version           # → 0.21.1
 
     ---
 
-    `list-remote` and `latest` go through a three-layer cache (baked-in
-    baseline → disk → delta fetch), so they stay fast and respect the
-    GitHub rate limit.
+    `list-remote` and `latest` use a three-layer cache (baked-in
+    baseline → disk → delta fetch). As a result, they stay fast and
+    respect the GitHub rate limit.
 
     [:octicons-arrow-right-24: Caching strategy](caching.md)
 
@@ -68,9 +69,10 @@ vcluster version           # → 0.21.1
 
     ---
 
-    `vc-env install` streams with a progress bar, verifies the SHA256
-    from the release, and writes atomically (temp + rename). An
-    interrupted install never leaves a half-written binary.
+    `vc-env install` streams the download with a progress bar. It
+    verifies the SHA256 from the release and writes the file atomically
+    (temp + rename). An interrupted install never leaves a half-written
+    binary.
 
     [:octicons-arrow-right-24: install command](cli-reference.md#install)
 
@@ -78,8 +80,9 @@ vcluster version           # → 0.21.1
 
     ---
 
-    Prebuilt binaries for `darwin/amd64`, `darwin/arm64`, `linux/amd64`
-    and `linux/arm64`; OS and CPU architecture are detected automatically.
+    Prebuilt binaries exist for `darwin/amd64`, `darwin/arm64`,
+    `linux/amd64` and `linux/arm64`. `vc-env` detects the OS and CPU
+    architecture automatically.
 
     [:octicons-arrow-right-24: Supported platforms](installation-and-configuration.md#supported-platforms)
 
@@ -88,7 +91,7 @@ vcluster version           # → 0.21.1
     ---
 
     `vc-env upgrade` replaces the current binary in place with the latest
-    stable release of `vc-env` — no package manager required.
+    stable release of `vc-env`. You do not need a package manager.
 
     [:octicons-arrow-right-24: upgrade command](cli-reference.md#upgrade)
 
@@ -96,7 +99,7 @@ vcluster version           # → 0.21.1
 
 ## Install
 
-Pick how you want to install the `vc-env` binary. The next step is always
+Choose how you want to install the `vc-env` binary. The next step is always
 the same: export `VCENV_ROOT` and run `eval "$(vc-env init)"` in your
 shell profile.
 
@@ -127,7 +130,7 @@ shell profile.
     ls build/
     ```
 
-Then wire the shim into your shell:
+Then add the shim to your shell:
 
 ```sh
 # in ~/.bashrc or ~/.zshrc
@@ -136,7 +139,7 @@ eval "$(vc-env init)"
 source <(vc-env completion bash)  # or: zsh / fish / powershell
 ```
 
-Full install details, platform notes and troubleshooting:
+For full install details, platform notes and troubleshooting, see
 [Installation and configuration](installation-and-configuration.md).
 
 ## What's next

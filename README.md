@@ -1,13 +1,13 @@
 # vc-env
 
-A version manager for [vcluster](https://www.vcluster.com/) CLI, similar to [tfenv](https://github.com/tfutils/tfenv) and [pyenv](https://github.com/pyenv/pyenv).
+vc-env is a version manager for the [vcluster](https://www.vcluster.com/) CLI. It works like [tfenv](https://github.com/tfutils/tfenv) and [pyenv](https://github.com/pyenv/pyenv).
 
-Manage multiple versions of the vcluster CLI and switch between them seamlessly.
+Use it to install multiple versions of the vcluster CLI and to switch between them.
 
 ## Documentation
 
-Hosted site: **<https://mmpyro.github.io/vc-env/>** (built from `docs/` with
-MkDocs Material, deployed by [`.github/workflows/docs.yml`](.github/workflows/docs.yml)).
+Hosted site: **<https://mmpyro.github.io/vc-env/>**. MkDocs Material builds the site from `docs/`, and
+[`.github/workflows/docs.yml`](.github/workflows/docs.yml) deploys it.
 
 Sources:
 
@@ -16,8 +16,8 @@ Sources:
 - [CLI reference](docs/cli-reference.md)
 - [Caching strategy](docs/caching.md)
 
-To preview locally: `make docs-serve` (creates `.venv-docs/` on first run and
-opens the site at http://127.0.0.1:8000/vc-env/).
+To preview the site locally, run `make docs-serve`. On the first run, it creates `.venv-docs/`.
+It opens the site at http://127.0.0.1:8000/vc-env/.
 
 ## Downloads (latest release)
 
@@ -33,15 +33,15 @@ Latest release: **v1.2.0** (tag: `v1.2.0`).
 ## Features
 
 - Install and manage multiple vcluster CLI versions
-- Automatic version switching based on project directory (`.vcluster-version`)
-- Shell-level, local (directory), and global version configuration
+- Automatic version switch based on the project directory (`.vcluster-version`)
+- Shell-level, local (directory) and global version configuration
 - Version priority: shell > local > global
-- Auto-detection of OS and architecture for binary downloads
-- Shim-based transparent proxying of `vcluster` commands
+- Automatic detection of the OS and architecture for binary downloads
+- A shim that transparently proxies `vcluster` commands
 
 ## Installation
 
-### From Source
+### From source
 
 ```sh
 git clone https://github.com/mmpyro/vc-env.git
@@ -49,19 +49,19 @@ cd vc-env
 make build
 ```
 
-The binary will be at `build/vc-env`. Move it to a directory in your `PATH`:
+The binary is then at `build/vc-env`. Move it to a directory in your `PATH`:
 
 ```sh
 sudo mv build/vc-env /usr/local/bin/
 ```
 
-### Cross-compile for All Platforms
+### Cross-compile for all platforms
 
 ```sh
 make build-all
 ```
 
-This produces binaries for:
+This command builds binaries for these platforms:
 - `linux/amd64`
 - `linux/arm64`
 - `darwin/amd64`
@@ -69,19 +69,19 @@ This produces binaries for:
 
 ### CI tip
 
-If you use `vc-env` from CI (for example GitHub Actions), export `GITHUB_TOKEN`
-(or the vc-env-specific `VCENV_GITHUB_TOKEN`) before invoking `vc-env install`,
-`vc-env latest`, or `vc-env list-remote`. Without a token, GitHub applies an
-anonymous rate limit of 60 requests per hour per IP, which is easy to hit on
-shared CI runners; an authenticated request raises the quota to 5000/h. See
-[docs/cli-reference.md](docs/cli-reference.md#environment-variables) for the
-full list of supported environment variables.
+If you use `vc-env` in CI (for example GitHub Actions), export `GITHUB_TOKEN`
+or the vc-env-specific `VCENV_GITHUB_TOKEN`. Do this before you run `vc-env install`,
+`vc-env latest` or `vc-env list-remote`. Without a token, GitHub applies an
+anonymous rate limit of 60 requests per hour per IP. Shared CI runners hit this
+limit easily. Authenticated requests get a quota of 5000/h. For the full list of
+supported environment variables, see
+[docs/cli-reference.md](docs/cli-reference.md#environment-variables).
 
-## Quick Start
+## Quick start
 
-### 1. Set up VCENV_ROOT
+### 1. Set VCENV_ROOT
 
-Add to your `~/.bashrc` or `~/.zshrc`:
+Add this line to your `~/.bashrc` or `~/.zshrc`:
 
 ```sh
 export VCENV_ROOT="$HOME/.vcenv"
@@ -95,15 +95,15 @@ source ~/.bashrc  # or source ~/.zshrc
 
 ### 2. Initialize vc-env
 
-Add the following to your `~/.bashrc` or `~/.zshrc` (after the `VCENV_ROOT` export):
+Add this line to your `~/.bashrc` or `~/.zshrc`, after the `VCENV_ROOT` export:
 
 ```sh
 eval "$(vc-env init)"
 ```
 
-This sets up:
-- A `vc-env` shell function for `vc-env shell` support
-- PATH prepend for the vcluster shim
+This line does two things:
+- It defines a `vc-env` shell function, which `vc-env shell` needs.
+- It prepends the vcluster shim to `PATH`.
 
 ### 3. Install a vcluster version
 
@@ -120,9 +120,9 @@ vc-env install 0.21          # highest 0.21.x
 vc-env install ~0.21.1       # highest 0.21.y with y >= 1
 ```
 
-Tip: set `VCENV_AUTO_INSTALL=1` in your shell profile and the `vcluster`
-shim will install missing versions automatically on first use — ideal when
-teammates clone a repo containing a `.vcluster-version` file.
+Tip: if you set `VCENV_AUTO_INSTALL=1` in your shell profile, the `vcluster`
+shim installs missing versions automatically on first use. This is useful when
+teammates clone a repo that contains a `.vcluster-version` file.
 
 ### 4. Set a version
 
@@ -143,9 +143,9 @@ vc-env shell 0.21.1
 vcluster version
 ```
 
-The shim automatically resolves and uses the correct version.
+The shim resolves the correct version and uses it automatically.
 
-## Command Reference
+## Command reference
 
 Full reference: [docs/cli-reference.md](docs/cli-reference.md)
 
@@ -158,11 +158,11 @@ Full reference: [docs/cli-reference.md](docs/cli-reference.md)
 | `vc-env latest` | Print the latest available version of vcluster from GitHub |
 | `vc-env init` | Initialize vc-env setup |
 | `vc-env status` | Show current environment status |
-| `vc-env doctor [--fix] [--deep]` | Diagnose the environment (PATH, shim, binaries, GitHub, cache); `--deep` verifies binaries against release checksums |
-| `vc-env prune [--keep-last N] [--older-than DUR] [--yes]` | Remove installed versions no `.vcluster-version`/global/shell setting references (dry run unless `--yes`) |
+| `vc-env doctor [--fix] [--deep]` | Diagnose the environment (PATH, shim, binaries, GitHub, cache). `--deep` verifies binaries against release checksums |
+| `vc-env prune [--keep-last N] [--older-than DUR] [--yes]` | Remove installed versions that no `.vcluster-version`, global or shell setting references (dry run unless `--yes`) |
 | `vc-env install [VERSION\|ALIAS]` | Install a specific version or alias (or latest). Supports `--from-file`, `--sha256` |
 | `vc-env uninstall VERSION` | Uninstall a specific version |
-| `vc-env exec [--auto\|--no-auto] VERSION\|ALIAS [--] ARGS...` | Run vcluster at a specific version; the child's exit code is passed through |
+| `vc-env exec [--auto\|--no-auto] VERSION\|ALIAS [--] ARGS...` | Run vcluster at a specific version. Passes through the exit code of the child process |
 | `vc-env shell [VERSION\|ALIAS]` | Set/show shell version (`VCENV_VERSION`) |
 | `vc-env local [VERSION\|ALIAS]` | Set/show local version (`.vcluster-version`) |
 | `vc-env global [VERSION\|ALIAS]` | Set/show global version (`$VCENV_ROOT/version`) |
@@ -170,36 +170,36 @@ Full reference: [docs/cli-reference.md](docs/cli-reference.md)
 | `vc-env which` | Print path to active vcluster binary |
 | `vc-env version` | Print vc-env version |
 | `vc-env upgrade` | Fetch the latest vc-env release from GitHub, verify its checksum, and replace the current binary in place |
-| `vc-env completion [SHELL] [--shell SHELL]` | Generate a shell completion script (`bash`, `zsh`, `fish`, `powershell`/`pwsh`; detected from `$SHELL` when omitted) |
+| `vc-env completion [SHELL] [--shell SHELL]` | Generate a shell completion script (`bash`, `zsh`, `fish`, `powershell`/`pwsh`). Without a shell argument, it detects the shell from `$SHELL` |
 
 Every command accepts `-h`/`--help`.
 
-## Environment Variables
+## Environment variables
 
 | Variable | Purpose |
 |---|---|
-| `VCENV_ROOT` | Required. Where versions, shims, and config live |
-| `VCENV_VERSION` | Shell-level version (set by `vc-env shell`); highest priority |
+| `VCENV_ROOT` | Required. The directory for versions, shims and config |
+| `VCENV_VERSION` | Shell-level version (set by `vc-env shell`). Highest priority |
 | `VCENV_AUTO_INSTALL` | `1`: install missing versions on demand (shim, `resolve`, `exec`) |
-| `VCENV_GITHUB_TOKEN` | GitHub token; falls back to `GITHUB_TOKEN` |
+| `VCENV_GITHUB_TOKEN` | GitHub token. Falls back to `GITHUB_TOKEN` |
 | `VCENV_GITHUB_API_URL` | GitHub API base URL (default `https://api.github.com`), e.g. for GitHub Enterprise |
 | `VCENV_DOWNLOAD_MIRROR` | Download base URL (default `https://github.com`), e.g. for air-gapped mirrors |
 | `VCENV_CACHE_TTL` | Release cache TTL as a Go duration (default `1h`) |
-| `VCENV_PRUNE_SCAN_ROOTS` | Roots `prune` scans for `.vcluster-version` files (default `$HOME`; empty disables scanning) |
+| `VCENV_PRUNE_SCAN_ROOTS` | Roots that `prune` scans for `.vcluster-version` files (default `$HOME`, an empty value disables scanning) |
 
-## Version Priority
+## Version priority
 
-When `vcluster` is invoked, the version is resolved in this order:
+When you run `vcluster`, the shim resolves the version in this order:
 
-1. **Shell** — `VCENV_VERSION` environment variable (set via `vc-env shell`)
-2. **Local** — `.vcluster-version` file in the current or parent directories (set via `vc-env local`)
-3. **Global** — `$VCENV_ROOT/version` file (set via `vc-env global`)
+1. Shell: the `VCENV_VERSION` environment variable (set with `vc-env shell`)
+2. Local: a `.vcluster-version` file in the current or parent directories (set with `vc-env local`)
+3. Global: the `$VCENV_ROOT/version` file (set with `vc-env global`)
 
-If no version is configured at any level, the command fails with an informative error.
+If no level has a version, the command fails with an informative error.
 
-## Shell Setup
+## Shell setup
 
-`vc-env` ships native completion scripts for Bash, Zsh, Fish, and PowerShell. Choose the block that matches your shell.
+`vc-env` has native completion scripts for Bash, Zsh, Fish, and PowerShell. Use the block for your shell.
 
 ### Bash
 
@@ -237,7 +237,7 @@ vc-env init | source
 vc-env completion fish | source
 ```
 
-Or install the completion persistently so it loads automatically:
+You can also install the completion permanently. Then Fish loads it automatically:
 
 ```fish
 vc-env completion fish > ~/.config/fish/completions/vc-env.fish
@@ -254,13 +254,13 @@ vc-env init | Out-String | Invoke-Expression
 vc-env completion powershell | Out-String | Invoke-Expression
 ```
 
-> `vc-env autocompletion` is still accepted as a deprecated alias for `vc-env completion` (same arguments) so existing shell rc files keep working; it prints a deprecation warning to stderr.
+> `vc-env autocompletion` is a deprecated alias for `vc-env completion` and takes the same arguments. `vc-env` still accepts it, so existing shell rc files keep working. It prints a deprecation warning to stderr.
 
 ## Caching
 
-`vc-env` uses a three-layer caching strategy to keep `list-remote` and `latest` fast and reliable. For more details on how it works and how to configure it, see [docs/caching.md](docs/caching.md).
+`vc-env` uses a three-layer caching strategy to keep `list-remote` and `latest` fast and reliable. To learn how it works and how to configure it, see [docs/caching.md](docs/caching.md).
 
-## Directory Structure
+## Directory structure
 
 ```
 $VCENV_ROOT/
@@ -276,13 +276,13 @@ $VCENV_ROOT/
 
 ## Development
 
-### Run Tests
+### Run tests
 
 ```sh
 make test
 ```
 
-### Run Docker Integration Tests
+### Run Docker integration tests
 
 ```sh
 make test-docker
